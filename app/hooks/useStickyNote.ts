@@ -1,34 +1,47 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-const STORAGE_KEY = "cerenspa:sticky-note:v1";
+import { supabase } from "@/lib/supabase";
 
 export function useStickyNote() {
   const [note, setNote] = useState("");
 
+  // İlk yükleme → Supabase'ten çek
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        setNote(saved);
+    const loadNote = async () => {
+      const { data } = await supabase
+        .from("sticky_notes")
+        .select("note")
+        .limit(1)
+        .single();
+
+      if (data?.note) {
+        setNote(data.note);
       }
-    } catch {
-      // sessiz geç
-    }
+    };
+
+    loadNote();
   }, []);
 
+  // Note değişince → Supabase'e kaydet
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, note);
-    } catch {
-      // sessiz geç
+    const saveNote = async () => {
+      await supabase
+        .from("sticky_notes")
+        .upsert([{ id: "00000000-0000-0000-0000-000000000001", note }]);
+    };
+
+    if (note !== undefined) {
+      saveNote();
     }
   }, [note]);
 
-  const clearNote = () => {
+  const clearNote = async () => {
     setNote("");
-    localStorage.removeItem(STORAGE_KEY);
+
+    await supabase
+      .from("sticky_notes")
+      .upsert([{ id: "00000000-0000-0000-0000-000000000001", note: "" }]);
   };
 
   return {
