@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 type AlternateMorningMed = "osende" | "lactoferin";
 
@@ -21,8 +22,6 @@ function getTodayKey() {
   return `${year}-${month}-${day}`;
 }
 
-const STORAGE_KEY = "cerenspa:medication:v3";
-
 export function useMedication() {
   const [medication, setMedication] = useState<MedicationData>({
     dateKey: getTodayKey(),
@@ -33,45 +32,95 @@ export function useMedication() {
     alternateMorning: "osende",
   });
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
+  const [loaded, setLoaded] = useState(false);
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-      const parsed = JSON.parse(raw) as MedicationData;
+  useEffect(() => {
+    const loadMedication = async () => {
       const today = getTodayKey();
 
-      if (parsed.dateKey === today) {
+      const { data, error } = await supabase
+        .from("medication_status")
+        .select("*")
+        .eq("date_key", today)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Medication load error:", error);
+        setLoaded(true);
+        return;
+      }
+
+      if (data) {
         setMedication({
           dateKey: today,
-          preBreakfastDone: parsed.preBreakfastDone ?? false,
-          breakfastDone: parsed.breakfastDone ?? false,
-          postBreakfastDone: parsed.postBreakfastDone ?? false,
-          eveningDone: parsed.eveningDone ?? false,
-          alternateMorning: parsed.alternateMorning ?? "osende",
+          preBreakfastDone: data.pre_breakfast_done ?? false,
+          breakfastDone: data.breakfast_done ?? false,
+          postBreakfastDone: data.post_breakfast_done ?? false,
+          eveningDone: data.evening_done ?? false,
+          alternateMorning:
+            (data.alternate_morning as AlternateMorningMed) ?? "osende",
         });
       } else {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yKey = `${yesterday.getFullYear()}-${String(
+          yesterday.getMonth() + 1
+        ).padStart(2, "0")}-${String(yesterday.getDate()).padStart(2, "0")}`;
+
+        const { data: yData } = await supabase
+          .from("medication_status")
+          .select("alternate_morning")
+          .eq("date_key", yKey)
+          .maybeSingle();
+
         setMedication({
           dateKey: today,
           preBreakfastDone: false,
           breakfastDone: false,
           postBreakfastDone: false,
           eveningDone: false,
-          alternateMorning: parsed.alternateMorning ?? "osende",
+          alternateMorning:
+            yData?.alternate_morning === "osende" ? "lactoferin" : "osende",
         });
       }
-    } catch {
-      // sessiz geç
-    }
+
+      setLoaded(true);
+    };
+
+    loadMedication();
   }, []);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(medication));
-    } catch {
-      // sessiz geç
-    }
-  }, [medication]);
+    if (!loaded) return;
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+
+    saveTimerRef.current = setTimeout(async () => {
+      const { error } = await supabase.from("medication_status").upsert(
+        [
+          {
+            date_key: medication.dateKey,
+            pre_breakfast_done: medication.preBreakfastDone,
+            breakfast_done: medication.breakfastDone,
+            post_breakfast_done: medication.postBreakfastDone,
+            evening_done: medication.eveningDone,
+            alternate_morning: medication.alternateMorning,
+            updated_at: new Date().toISOString(),
+          },
+        ],
+        { onConflict: "date_key" }
+      );
+
+      if (error) {
+        console.error("Medication save error:", error);
+      }
+    }, 300);
+
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [medication, loaded]);
 
   const todayAlternateLabel =
     medication.alternateMorning === "osende"
