@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
+const STICKY_USER_ID = "ceren";
+
 export function useStickyNote() {
   const [note, setNote] = useState("");
-  const [userId, setUserId] = useState<string | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -14,30 +15,10 @@ export function useStickyNote() {
     const loadNote = async () => {
       console.log("[Sticky] load başladı");
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      console.log("[Sticky] user:", user);
-      console.log("[Sticky] userError:", userError);
-
-      if (userError) {
-        console.error("[Sticky] User alınamadı:", userError);
-        return;
-      }
-
-      if (!user) {
-        console.warn("[Sticky] Giriş yapan kullanıcı yok.");
-        return;
-      }
-
-      setUserId(user.id);
-
       const { data, error } = await supabase
         .from("pa_sticky_notes")
         .select("note_text")
-        .eq("user_id", user.id)
+        .eq("user_id", STICKY_USER_ID)
         .maybeSingle();
 
       console.log("[Sticky] select data:", data);
@@ -45,22 +26,26 @@ export function useStickyNote() {
 
       if (error) {
         console.error("[Sticky] Not yüklenemedi:", error);
-      } else if (data?.note_text != null) {
+        return;
+      }
+
+      if (data?.note_text != null) {
         setNote(data.note_text);
       }
 
       channel = supabase
-        .channel(`pa_sticky_notes_${user.id}`)
+        .channel(`pa_sticky_notes_${STICKY_USER_ID}`)
         .on(
           "postgres_changes",
           {
             event: "*",
             schema: "public",
             table: "pa_sticky_notes",
-            filter: `user_id=eq.${user.id}`,
+            filter: `user_id=eq.${STICKY_USER_ID}`,
           },
           (payload) => {
             console.log("[Sticky] realtime payload:", payload);
+
             const newRow = payload.new as { note_text?: string };
             if (typeof newRow?.note_text === "string") {
               setNote(newRow.note_text);
@@ -76,50 +61,41 @@ export function useStickyNote() {
 
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
+      if (channel) supabase.removeChannel(channel);
     };
   }, []);
 
-  const saveNote = useCallback(
-    async (value: string) => {
-      console.log("[Sticky] saveNote çağrıldı:", value);
-      console.log("[Sticky] userId:", userId);
+  const saveNote = useCallback(async (value: string) => {
+    console.log("[Sticky] saveNote çağrıldı:", value);
 
-      if (!userId) {
-        console.warn("[Sticky] userId yok, save yapılmadı");
-        return;
-      }
+    const { data, error } = await supabase
+      .from("pa_sticky_notes")
+      .upsert(
+        {
+          user_id: STICKY_USER_ID,
+          note_text: value,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" }
+      )
+      .select();
 
-      const { data, error } = await supabase
-        .from("pa_sticky_notes")
-        .upsert(
-          {
-            user_id: userId,
-            note_text: value,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "user_id" }
-        )
-        .select();
+    console.log("[Sticky] upsert data:", data);
+    console.log("[Sticky] upsert error:", error);
 
-      console.log("[Sticky] upsert data:", data);
-      console.log("[Sticky] upsert error:", error);
-
-      if (error) {
-        console.error("[Sticky] Not kaydedilemedi:", error);
-      }
-    },
-    [userId]
-  );
+    if (error) {
+      console.error("[Sticky] Not kaydedilemedi:", error);
+    }
+  }, []);
 
   const updateNote = useCallback(
     (value: string) => {
       console.log("[Sticky] updateNote:", value);
       setNote(value);
 
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
 
       saveTimeoutRef.current = setTimeout(() => {
         saveNote(value);
@@ -128,7 +104,7 @@ export function useStickyNote() {
     [saveNote]
   );
 
-  const clearNote = useCallback(async () => {
+  const clearNote = useCallback(() => {
     updateNote("");
   }, [updateNote]);
 
