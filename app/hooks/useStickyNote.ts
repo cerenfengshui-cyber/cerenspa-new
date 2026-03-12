@@ -1,52 +1,116 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export function useStickyNote() {
   const [note, setNote] = useState("");
+  const [userId, setUserId] = useState<string | null>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // İlk yükleme → Supabase'ten çek
   useEffect(() => {
-    const loadNote = async () => {
-      const { data } = await supabase
-        .from("sticky_notes")
-        .select("note")
-        .limit(1)
-        .single();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-      if (data?.note) {
-        setNote(data.note);
+    const loadNote = async () => {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) {
+        console.error("User alınamadı:", userError);
+        return;
       }
+
+      if (!user) {
+        console.warn("Giriş yapan kullanıcı yok.");
+        return;
+      }
+
+      setUserId(user.id);
+
+      const { data, error } = await supabase
+        .from("pa_sticky_notes")
+        .select("note_text")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Not yüklenemedi:", error);
+      } else if (data?.note_text != null) {
+        setNote(data.note_text);
+      }
+
+      channel = supabase
+        .channel(`pa_sticky_notes_${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "pa_sticky_notes",
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            const newRow = payload.new as { note_text?: string };
+            if (typeof newRow?.note_text === "string") {
+              setNote(newRow.note_text);
+            }
+          }
+        )
+        .subscribe();
     };
 
     loadNote();
+
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
   }, []);
 
-  // Note değişince → Supabase'e kaydet
-  useEffect(() => {
-    const saveNote = async () => {
-      await supabase
-        .from("sticky_notes")
-        .upsert([{ id: "00000000-0000-0000-0000-000000000001", note }]);
-    };
+  const saveNote = useCallback(
+    async (value: string) => {
+      if (!userId) return;
 
-    if (note !== undefined) {
-      saveNote();
-    }
-  }, [note]);
+      const { error } = await supabase.from("pa_sticky_notes").upsert(
+        {
+          user_id: userId,
+          note_text: value,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" }
+      );
 
-  const clearNote = async () => {
-    setNote("");
+      if (error) {
+        console.error("Not kaydedilemedi:", error);
+      }
+    },
+    [userId]
+  );
 
-    await supabase
-      .from("sticky_notes")
-      .upsert([{ id: "00000000-0000-0000-0000-000000000001", note: "" }]);
-  };
+  const updateNote = useCallback(
+    (value: string) => {
+      setNote(value);
+
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+
+      saveTimeoutRef.current = setTimeout(() => {
+        saveNote(value);
+      }, 300);
+    },
+    [saveNote]
+  );
+
+  const clearNote = useCallback(async () => {
+    updateNote("");
+  }, [updateNote]);
 
   return {
     note,
-    setNote,
+    setNote: updateNote,
     clearNote,
   };
 }
