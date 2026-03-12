@@ -8,6 +8,7 @@ import WeatherCard from "./components/WeatherCard";
 import StickyNoteCard from "./components/StickyNoteCard";
 import MedicationCard from "./components/MedicationCard";
 import HydrationCard from "./components/HydrationCard";
+import DailyEnergyCard from "./components/DailyEnergyCard";
 
 type AuthState = "loading" | "signed-out" | "signed-in";
 
@@ -35,6 +36,7 @@ export default function Home() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
       setAuthState(session ? "signed-in" : "signed-out");
     });
 
@@ -173,7 +175,10 @@ export default function Home() {
             </div>
 
             <div className="md:col-span-1 self-start">
-              <HydrationCard />
+              <div className="grid gap-4">
+                <HydrationCard />
+                <DailyEnergyCard />
+              </div>
             </div>
           </div>
         </div>
