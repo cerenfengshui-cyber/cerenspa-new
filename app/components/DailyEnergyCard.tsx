@@ -9,19 +9,19 @@ type DayPart = {
   label: string;
 };
 
+type DailyStatus = {
+  key: string;
+  emoji: string;
+  text: string;
+};
+
 type DailyEnergyData = {
   ok: boolean;
   date: string;
   day: DayPart;
   month: DayPart;
   year: DayPart;
-  clash: boolean;
-  clashText: string;
-  harmony: boolean;
-  harmonyText: string;
-  penalty: boolean;
-  penaltyText: string;
-  badge: string;
+  statuses: DailyStatus[];
 };
 
 function getStemColor(char: string) {
@@ -71,11 +71,16 @@ export default function DailyEnergyCard() {
           {dayNumber}
         </div>
 
-        {data.badge && (
-          <span className="rounded-xl bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
-            {data.badge}
-          </span>
-        )}
+        <div className="flex items-center gap-1">
+          {data.statuses?.slice(0, 2).map((item) => (
+            <span
+              key={item.key}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-neutral-200 bg-white text-sm"
+            >
+              {item.emoji}
+            </span>
+          ))}
+        </div>
       </div>
 
       <div className="mt-5 grid grid-cols-3 text-center">
@@ -83,10 +88,10 @@ export default function DailyEnergyCard() {
           <div className="mb-2 text-[11px] font-medium tracking-wide text-neutral-400">
             GÜN
           </div>
-          <div className={`text-3xl font-semibold ${getStemColor(data.day.stem)}`}>
+          <div className={`text-[28px] font-medium ${getStemColor(data.day.stem)}`}>
             {data.day.stem}
           </div>
-          <div className={`mt-1 text-3xl font-semibold ${getBranchColor(data.day.branch)}`}>
+          <div className={`mt-1 text-[28px] font-normal ${getBranchColor(data.day.branch)}`}>
             {data.day.branch}
           </div>
           <div className="mt-1 text-xs text-neutral-600">{data.day.animal}</div>
@@ -96,10 +101,10 @@ export default function DailyEnergyCard() {
           <div className="mb-2 text-[11px] font-medium tracking-wide text-neutral-400">
             AY
           </div>
-          <div className={`text-3xl font-semibold ${getStemColor(data.month.stem)}`}>
+          <div className={`text-[28px] font-medium ${getStemColor(data.month.stem)}`}>
             {data.month.stem}
           </div>
-          <div className={`mt-1 text-3xl font-semibold ${getBranchColor(data.month.branch)}`}>
+          <div className={`mt-1 text-[28px] font-normal ${getBranchColor(data.month.branch)}`}>
             {data.month.branch}
           </div>
           <div className="mt-1 text-xs text-neutral-600">{data.month.animal}</div>
@@ -109,36 +114,23 @@ export default function DailyEnergyCard() {
           <div className="mb-2 text-[11px] font-medium tracking-wide text-neutral-400">
             YIL
           </div>
-          <div className={`text-3xl font-semibold ${getStemColor(data.year.stem)}`}>
+          <div className={`text-[28px] font-medium ${getStemColor(data.year.stem)}`}>
             {data.year.stem}
           </div>
-          <div className={`mt-1 text-3xl font-semibold ${getBranchColor(data.year.branch)}`}>
+          <div className={`mt-1 text-[28px] font-normal ${getBranchColor(data.year.branch)}`}>
             {data.year.branch}
           </div>
           <div className="mt-1 text-xs text-neutral-600">{data.year.animal}</div>
         </div>
       </div>
 
-      {data.clash && (
-        <div className="mt-5 text-sm">
-          <div className="font-medium text-blue-700">⚠ Çatışma</div>
-          <div className="mt-1 text-neutral-700">{data.clashText}</div>
-        </div>
-      )}
-
-      {data.harmony && (
-        <div className="mt-3 text-sm">
-          <div className="font-medium text-green-700">△ Uyum</div>
-          <div className="mt-1 text-neutral-700">{data.harmonyText}</div>
-        </div>
-      )}
-
-      {data.penalty && (
-        <div className="mt-3 text-sm">
-          <div className="font-medium text-red-700">⚖ Penaltı</div>
-          <div className="mt-1 text-neutral-700">{data.penaltyText}</div>
-        </div>
-      )}
+      <div className="mt-5 space-y-2">
+        {data.statuses?.map((item) => (
+          <div key={item.key} className="text-sm text-neutral-700">
+            {item.emoji} {item.text}
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
