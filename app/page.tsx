@@ -142,7 +142,7 @@ export default function Home() {
 
           <div className="flex items-center gap-2">
             <a
-              href="https://ceren-feng-shui-lab.vercel.app/calendar"
+              href="https://ceren-feng-shui-lab.vercel.app"
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-2xl bg-white px-4 py-2 text-sm ring-1 ring-black/5 hover:bg-neutral-50"
