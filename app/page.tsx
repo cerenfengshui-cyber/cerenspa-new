@@ -137,15 +137,26 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-neutral-100 p-6">
       <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold">Ceren’s PA</h1>
 
-          <button
-            onClick={handleLogout}
-            className="rounded-2xl bg-white px-4 py-2 text-sm ring-1 ring-black/5 hover:bg-neutral-50"
-          >
-            Çıkış yap
-          </button>
+          <div className="flex items-center gap-2">
+            <a
+              href="https://ceren-feng-shui-lab.vercel.app/calendar"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-2xl bg-white px-4 py-2 text-sm ring-1 ring-black/5 hover:bg-neutral-50"
+            >
+              Feng Shui Lab
+            </a>
+
+            <button
+              onClick={handleLogout}
+              className="rounded-2xl bg-white px-4 py-2 text-sm ring-1 ring-black/5 hover:bg-neutral-50"
+            >
+              Çıkış yap
+            </button>
+          </div>
         </div>
 
         <div className="grid gap-4">
