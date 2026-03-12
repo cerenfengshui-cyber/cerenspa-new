@@ -12,18 +12,23 @@ export function useStickyNote() {
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const loadNote = async () => {
+      console.log("[Sticky] load başladı");
+
       const {
         data: { user },
         error: userError,
       } = await supabase.auth.getUser();
 
+      console.log("[Sticky] user:", user);
+      console.log("[Sticky] userError:", userError);
+
       if (userError) {
-        console.error("User alınamadı:", userError);
+        console.error("[Sticky] User alınamadı:", userError);
         return;
       }
 
       if (!user) {
-        console.warn("Giriş yapan kullanıcı yok.");
+        console.warn("[Sticky] Giriş yapan kullanıcı yok.");
         return;
       }
 
@@ -35,8 +40,11 @@ export function useStickyNote() {
         .eq("user_id", user.id)
         .maybeSingle();
 
+      console.log("[Sticky] select data:", data);
+      console.log("[Sticky] select error:", error);
+
       if (error) {
-        console.error("Not yüklenemedi:", error);
+        console.error("[Sticky] Not yüklenemedi:", error);
       } else if (data?.note_text != null) {
         setNote(data.note_text);
       }
@@ -52,13 +60,16 @@ export function useStickyNote() {
             filter: `user_id=eq.${user.id}`,
           },
           (payload) => {
+            console.log("[Sticky] realtime payload:", payload);
             const newRow = payload.new as { note_text?: string };
             if (typeof newRow?.note_text === "string") {
               setNote(newRow.note_text);
             }
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log("[Sticky] realtime status:", status);
+        });
     };
 
     loadNote();
@@ -73,19 +84,31 @@ export function useStickyNote() {
 
   const saveNote = useCallback(
     async (value: string) => {
-      if (!userId) return;
+      console.log("[Sticky] saveNote çağrıldı:", value);
+      console.log("[Sticky] userId:", userId);
 
-      const { error } = await supabase.from("pa_sticky_notes").upsert(
-        {
-          user_id: userId,
-          note_text: value,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id" }
-      );
+      if (!userId) {
+        console.warn("[Sticky] userId yok, save yapılmadı");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("pa_sticky_notes")
+        .upsert(
+          {
+            user_id: userId,
+            note_text: value,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id" }
+        )
+        .select();
+
+      console.log("[Sticky] upsert data:", data);
+      console.log("[Sticky] upsert error:", error);
 
       if (error) {
-        console.error("Not kaydedilemedi:", error);
+        console.error("[Sticky] Not kaydedilemedi:", error);
       }
     },
     [userId]
@@ -93,6 +116,7 @@ export function useStickyNote() {
 
   const updateNote = useCallback(
     (value: string) => {
+      console.log("[Sticky] updateNote:", value);
       setNote(value);
 
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
