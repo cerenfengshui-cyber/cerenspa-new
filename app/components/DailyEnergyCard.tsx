@@ -2,138 +2,97 @@
 
 import { useEffect, useState } from "react";
 
+type DayPart = {
+  stem: string;
+  branch: string;
+  animal: string;
+  label: string;
+};
+
 type DailyEnergyData = {
   ok: boolean;
-  source: string;
   date: string;
-  pillar: {
-    tr: string;
-    en: string;
-  };
-  stem: {
-    name: string;
-    element: string;
-    yinYang: string;
-  };
-  branch: {
-    name: string;
-    animal: string;
-  };
+  day: DayPart;
+  month: DayPart;
+  year: DayPart;
+  clash: boolean;
+  clashText: string;
+  harmony: boolean;
+  harmonyText: string;
+  penalty: boolean;
+  penaltyText: string;
   badge: string;
-  summary: string;
-  focus: string;
-  care: string;
 };
 
 export default function DailyEnergyCard() {
   const [data, setData] = useState<DailyEnergyData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        setLoading(true);
-        setError("");
-
-        const res = await fetch(
-          "https://ceren-feng-shui-lab.vercel.app/api/daily-energy",
-          { cache: "no-store" }
-        );
-
-        if (!res.ok) {
-          throw new Error("API response failed");
-        }
-
-        const json = await res.json();
-
-        if (!cancelled) {
-          setData(json);
-        }
-      } catch (err) {
-        console.error("DailyEnergyCard error:", err);
-        if (!cancelled) {
-          setError("Günün enerjisi şu anda yüklenemedi.");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
+    fetch("https://ceren-feng-shui-lab.vercel.app/api/daily-energy", {
+      cache: "no-store",
+    })
+      .then((r) => r.json())
+      .then(setData)
+      .catch(console.error);
   }, []);
+
+  if (!data) {
+    return (
+      <section className="rounded-3xl border border-black/5 bg-white/80 p-5 shadow-sm">
+        <p className="text-sm text-neutral-500">Yükleniyor...</p>
+      </section>
+    );
+  }
+
+  const dayNumber = new Date(data.date).getDate();
 
   return (
     <section className="rounded-3xl border border-black/5 bg-white/80 p-5 shadow-sm backdrop-blur-md">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-base font-medium text-neutral-900">
-            Günün Enerjisi
-          </h2>
-          <p className="mt-1 text-xs text-neutral-500">
-            Çin astrolojisine göre günlük akış
-          </p>
-        </div>
+      <div className="flex items-start justify-between">
+        <div className="text-2xl font-semibold">{dayNumber}</div>
 
-        {data?.badge ? (
-          <span className="rounded-full bg-neutral-100 px-3 py-1 text-[11px] font-medium text-neutral-700">
+        {data.badge && (
+          <span className="rounded-xl bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
             {data.badge}
           </span>
-        ) : null}
+        )}
       </div>
 
-      {loading ? (
-        <p className="text-sm text-neutral-500">Yükleniyor...</p>
-      ) : error ? (
-        <p className="text-sm text-neutral-500">{error}</p>
-      ) : data ? (
-        <div className="space-y-4">
-          <div className="rounded-2xl bg-neutral-50 p-3">
-            <p className="text-xs text-neutral-500">{data.date}</p>
+      <div className="mt-4 grid grid-cols-3 text-center text-xs text-neutral-500">
+        <div>GÜN</div>
+        <div>AY</div>
+        <div>YIL</div>
+      </div>
 
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-neutral-700 shadow-sm">
-                {data.pillar.tr}
-              </span>
-              <span className="rounded-full bg-white px-3 py-1 text-xs text-neutral-600 shadow-sm">
-                {data.stem.yinYang} {data.stem.element}
-              </span>
-              <span className="rounded-full bg-white px-3 py-1 text-xs text-neutral-600 shadow-sm">
-                {data.branch.animal}
-              </span>
-            </div>
-          </div>
+      <div className="mt-1 grid grid-cols-3 text-center text-xl font-semibold">
+        <div>{data.day.stem}</div>
+        <div>{data.month.stem}</div>
+        <div>{data.year.stem}</div>
+      </div>
 
-          <div className="space-y-3 text-sm leading-6 text-neutral-700">
-            <p>{data.summary}</p>
+      <div className="mt-3 text-sm text-neutral-700">
+        {data.day.label} – {data.month.label} – {data.year.label}
+      </div>
 
-            <div>
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Destekleyen alan
-              </p>
-              <p>{data.focus}</p>
-            </div>
-
-            <div>
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Dikkat
-              </p>
-              <p>{data.care}</p>
-            </div>
-          </div>
+      {data.clash && (
+        <div className="mt-4 text-sm text-blue-700">
+          ⚠ Çatışma
+          <div className="text-neutral-700">{data.clashText}</div>
         </div>
-      ) : (
-        <p className="text-sm text-neutral-500">
-          Günlük enerji verisi bulunamadı.
-        </p>
+      )}
+
+      {data.harmony && (
+        <div className="mt-2 text-sm text-green-700">
+          △ Uyum
+          <div className="text-neutral-700">{data.harmonyText}</div>
+        </div>
+      )}
+
+      {data.penalty && (
+        <div className="mt-2 text-sm text-red-700">
+          ⚖ Penaltı
+          <div className="text-neutral-700">{data.penaltyText}</div>
+        </div>
       )}
     </section>
   );
