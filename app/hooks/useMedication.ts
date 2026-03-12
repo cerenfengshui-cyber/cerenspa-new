@@ -21,8 +21,7 @@ function getTodayKey() {
   return `${year}-${month}-${day}`;
 }
 
-// Bu tarihi "Osende günü" olarak kabul ediyoruz.
-// Ertesi gün otomatik Lactoferin, sonra yine Osende...
+// 11 Mart 2026 = Osende
 const ALT_START_DATE = "2026-03-11";
 
 function daysBetween(startDateKey: string, targetDateKey: string) {
@@ -60,10 +59,10 @@ export function useMedication() {
   const tomorrowAlternate = useMemo(() => {
     const d = new Date(`${medication.dateKey}T00:00:00`);
     d.setDate(d.getDate() + 1);
-    const tomorrowKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
-      2,
-      "0"
-    )}-${String(d.getDate()).padStart(2, "0")}`;
+
+    const tomorrowKey = `${d.getFullYear()}-${String(
+      d.getMonth() + 1
+    ).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
     return getAlternateMorningForDate(tomorrowKey);
   }, [medication.dateKey]);
@@ -78,13 +77,13 @@ export function useMedication() {
       } = await supabase.auth.getUser();
 
       if (userError) {
-        console.error("User alınamadı:", userError);
+        console.error("[Medication] User alınamadı:", userError);
         setLoaded(true);
         return;
       }
 
       if (!user) {
-        console.warn("Giriş yapan kullanıcı yok.");
+        console.warn("[Medication] Giriş yapan kullanıcı yok.");
         setLoaded(true);
         return;
       }
@@ -101,7 +100,7 @@ export function useMedication() {
         .maybeSingle();
 
       if (error) {
-        console.error("Medication load error:", error);
+        console.error("[Medication] load error:", error);
         setLoaded(true);
         return;
       }
@@ -125,21 +124,23 @@ export function useMedication() {
 
         setMedication(freshState);
 
-        const { error: insertError } = await supabase.from("pa_daily_state").upsert(
-          {
-            user_id: user.id,
-            date_key: todayKey,
-            pre_breakfast_done: false,
-            breakfast_done: false,
-            post_breakfast_done: false,
-            evening_done: false,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "user_id,date_key" }
-        );
+        const { error: insertError } = await supabase
+          .from("pa_daily_state")
+          .upsert(
+            {
+              user_id: user.id,
+              date_key: todayKey,
+              pre_breakfast_done: false,
+              breakfast_done: false,
+              post_breakfast_done: false,
+              evening_done: false,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "user_id,date_key" }
+          );
 
         if (insertError) {
-          console.error("Medication initial insert error:", insertError);
+          console.error("[Medication] initial insert error:", insertError);
         }
       }
 
@@ -174,7 +175,6 @@ export function useMedication() {
           }
         )
         .subscribe();
-
       setLoaded(true);
     };
 
@@ -182,9 +182,7 @@ export function useMedication() {
 
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
+      if (channel) supabase.removeChannel(channel);
     };
   }, [todayKey]);
 
@@ -192,21 +190,23 @@ export function useMedication() {
     async (next: MedicationData) => {
       if (!userId) return;
 
-      const { error } = await supabase.from("pa_daily_state").upsert(
-        {
-          user_id: userId,
-          date_key: next.dateKey,
-          pre_breakfast_done: next.preBreakfastDone,
-          breakfast_done: next.breakfastDone,
-          post_breakfast_done: next.postBreakfastDone,
-          evening_done: next.eveningDone,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id,date_key" }
-      );
+      const { error } = await supabase
+        .from("pa_daily_state")
+        .upsert(
+          {
+            user_id: userId,
+            date_key: next.dateKey,
+            pre_breakfast_done: next.preBreakfastDone,
+            breakfast_done: next.breakfastDone,
+            post_breakfast_done: next.postBreakfastDone,
+            evening_done: next.eveningDone,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id,date_key" }
+        );
 
       if (error) {
-        console.error("Medication save error:", error);
+        console.error("[Medication] save error:", error);
       }
     },
     [userId]
@@ -242,27 +242,19 @@ export function useMedication() {
       : "Lactoferin – 1 Adet";
 
   const markPreBreakfastDone = () => {
-    patchMedication({
-      preBreakfastDone: true,
-    });
+    patchMedication({ preBreakfastDone: true });
   };
 
   const markBreakfastDone = () => {
-    patchMedication({
-      breakfastDone: true,
-    });
+    patchMedication({ breakfastDone: true });
   };
 
   const markPostBreakfastDone = () => {
-    patchMedication({
-      postBreakfastDone: true,
-    });
+    patchMedication({ postBreakfastDone: true });
   };
 
   const markEveningDone = () => {
-    patchMedication({
-      eveningDone: true,
-    });
+    patchMedication({ eveningDone: true });
   };
 
   const resetMedication = () => {
