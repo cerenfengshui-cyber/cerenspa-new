@@ -18,7 +18,7 @@ export default function MedicationCard() {
   return (
     <div className="rounded-3xl bg-white/30 p-5 shadow-sm ring-1 ring-black/5 backdrop-blur-2xl">
       <div className="flex items-start justify-between">
-        <h2 className="text-base font-medium">İlaç</h2>
+        <h2 className="text-base font-medium">İlaç & Takviye</h2>
         <span className="text-xs text-neutral-500">
           {completedCount}/4 tamamlandı
         </span>
@@ -28,23 +28,24 @@ export default function MedicationCard() {
         {!medication.preBreakfastDone ? (
           <div className="rounded-2xl bg-white/35 p-4 ring-1 ring-black/5">
             <p className="text-sm font-medium text-neutral-900">
-              Kahvaltıdan 20 dk önce
+              🌅 Sabah aç karnına
             </p>
 
             <ul className="mt-3 space-y-1 text-sm text-neutral-700">
-              <li>• Berberine – 1 Adet</li>
-              <li>• Zedprex – 1 Adet</li>
-              <li>• Glutamin – 1 Adet</li>
               <li>• {todayAlternateLabel}</li>
             </ul>
 
-            <p className="mt-3 text-xs text-neutral-500">
-              İçtikten 20 dk sonra kahvaltı
-            </p>
+            <div className="mt-3 rounded-2xl bg-white/40 p-3 text-xs text-neutral-600 ring-1 ring-black/5">
+              <p>⏳ 20–30 dk bekle</p>
+              <p>☕ Kahve / çay 1 saat yok</p>
+              <p>🥛 Süt ürünleri 1–2 saat yok</p>
+              <p>💊 Başka takviye yok</p>
+              <p>💧 1 bardak su ile, tek başına al</p>
+            </div>
 
             <button
               onClick={markPreBreakfastDone}
-              className="mt-4 rounded-2xl bg-white/50 px-3 py-1.5 text-sm ring-1 ring-black/5 hover:bg-white/70"
+              className="mt-4 rounded-2xl bg-white/50 px-3 py-1.5 text-sm ring-1 ring-black/5 transition hover:bg-white/70"
             >
               İçtim
             </button>
@@ -52,7 +53,7 @@ export default function MedicationCard() {
         ) : (
           <div className="rounded-2xl bg-green-50 p-4 ring-1 ring-green-200">
             <p className="text-sm font-medium text-green-700">
-              ✔ Sabah aç karnına ilaçlar tamamlandı
+              ✔ Sabah aç karnına demir / Lactoferrin tamamlandı
             </p>
             <p className="mt-1 text-xs text-neutral-500">
               Yarın sıra: {tomorrowAlternateLabel}
@@ -63,16 +64,25 @@ export default function MedicationCard() {
         {!medication.breakfastDone ? (
           <div className="rounded-2xl bg-white/35 p-4 ring-1 ring-black/5">
             <p className="text-sm font-medium text-neutral-900">
-              Kahvaltıda 1–2 lokma sonra
+              ⏳ 20–30 dk sonra
             </p>
 
             <ul className="mt-3 space-y-1 text-sm text-neutral-700">
-              <li>• Matofin – 500 mg</li>
+              <li>• Berberine – 1 Adet</li>
+              <li>• Glutamin – 1 Adet</li>
+              <li>• Matofin – 500 mg (kahvaltıda 1–2 lokma sonra)</li>
             </ul>
+
+            <div className="mt-3 rounded-2xl bg-white/40 p-3 text-xs text-neutral-600 ring-1 ring-black/5">
+              <p>⏳ Berberine + glutamin sonrası 10–15 dk bekle</p>
+              <p>🍽 Sonra kahvaltı yap</p>
+              <p>☕ Kahve istersen kahvaltı ile birlikte içebilirsin</p>
+              <p>⚠️ Mide hassasiyeti olursa berberineyi kahvaltıya kaydır</p>
+            </div>
 
             <button
               onClick={markBreakfastDone}
-              className="mt-4 rounded-2xl bg-white/50 px-3 py-1.5 text-sm ring-1 ring-black/5 hover:bg-white/70"
+              className="mt-4 rounded-2xl bg-white/50 px-3 py-1.5 text-sm ring-1 ring-black/5 transition hover:bg-white/70"
             >
               İçtim
             </button>
@@ -80,7 +90,7 @@ export default function MedicationCard() {
         ) : (
           <div className="rounded-2xl bg-green-50 p-4 ring-1 ring-green-200">
             <p className="text-sm font-medium text-green-700">
-              ✔ Kahvaltı ilaçları tamamlandı
+              ✔ Kahvaltı öncesi ve kahvaltı akışı tamamlandı
             </p>
           </div>
         )}
@@ -88,22 +98,27 @@ export default function MedicationCard() {
         {!medication.postBreakfastDone ? (
           <div className="rounded-2xl bg-white/35 p-4 ring-1 ring-black/5">
             <p className="text-sm font-medium text-neutral-900">
-              Kahvaltıdan sonra tok
+              ☀️ Kahvaltıdan hemen sonra
             </p>
 
             <ul className="mt-3 space-y-1 text-sm text-neutral-700">
-              <li>• Thyromazol – 2.5 MG</li>
-              <li>• Dideral – Yarım</li>
+              <li>• Thyromazol – 2.5 mg</li>
               <li>• Dispepta – 1 Adet</li>
-              <li>• L-Carnitine – 1 Adet</li>
+              <li>• L-Carnitine / ALCAR – 1 Adet</li>
               <li>• NAC 600 – 1 Adet</li>
               <li>• B-12 – 1 Adet</li>
-              <li>• Kreon – 1 Adet</li>
             </ul>
+
+            <div className="mt-3 rounded-2xl bg-white/40 p-3 text-xs text-neutral-600 ring-1 ring-black/5">
+              <p>⏳ Son lokmadan sonra 30 dk bekleme yok</p>
+              <p>✅ Kahvaltı biter bitmez alabilirsin</p>
+              <p>☀️ ALCAR sabah alınır, akşama bırakılmaz</p>
+              <p>☕ Kahveyi kahvaltı ile veya hemen sonrasında içebilirsin</p>
+            </div>
 
             <button
               onClick={markPostBreakfastDone}
-              className="mt-4 rounded-2xl bg-white/50 px-3 py-1.5 text-sm ring-1 ring-black/5 hover:bg-white/70"
+              className="mt-4 rounded-2xl bg-white/50 px-3 py-1.5 text-sm ring-1 ring-black/5 transition hover:bg-white/70"
             >
               İçtim
             </button>
@@ -119,21 +134,27 @@ export default function MedicationCard() {
         {!medication.eveningDone ? (
           <div className="rounded-2xl bg-white/35 p-4 ring-1 ring-black/5">
             <p className="text-sm font-medium text-neutral-900">
-              Akşam yemekten sonra tok
+              🌙 Akşam yemeği + gece
             </p>
 
             <ul className="mt-3 space-y-1 text-sm text-neutral-700">
-              <li>• Dispepta – 1 Adet</li>
-              <li>• L-Carnitine – 1 Adet</li>
+              <li>• Kreon – 1 Adet</li>
               <li>• OmePa DK2 – 2 Adet</li>
-              <li>• NAC 600 – 1 Adet</li>
-              <li>• Melatonin – 1 Adet</li>
-              <li>• GST – 1 Adet</li>
+              <li>• Ocean D3 K2 – 8 damla</li>
+              <li>• Prozac – 40 mg</li>
+              <li>• Melatonin – 5 mg</li>
             </ul>
+
+            <div className="mt-3 rounded-2xl bg-white/40 p-3 text-xs text-neutral-600 ring-1 ring-black/5">
+              <p>🍽 Kreon + OmePa DK2 + Ocean D3 K2 akşam yemeği ile birlikte</p>
+              <p>🫒 Yağlı / normal bir öğünle almak daha iyi olur</p>
+              <p>🌙 Melatonin yatmadan 30–60 dk önce</p>
+              <p>💊 Prozac şimdilik sabit kalsın</p>
+            </div>
 
             <button
               onClick={markEveningDone}
-              className="mt-4 rounded-2xl bg-white/50 px-3 py-1.5 text-sm ring-1 ring-black/5 hover:bg-white/70"
+              className="mt-4 rounded-2xl bg-white/50 px-3 py-1.5 text-sm ring-1 ring-black/5 transition hover:bg-white/70"
             >
               İçtim
             </button>
@@ -141,7 +162,7 @@ export default function MedicationCard() {
         ) : (
           <div className="rounded-2xl bg-green-50 p-4 ring-1 ring-green-200">
             <p className="text-sm font-medium text-green-700">
-              ✔ Akşam ilaçları tamamlandı
+              ✔ Akşam ve gece ilaçları tamamlandı
             </p>
           </div>
         )}
@@ -149,7 +170,7 @@ export default function MedicationCard() {
 
       <button
         onClick={resetMedication}
-        className="mt-4 rounded-2xl bg-white/35 px-3 py-1.5 text-sm ring-1 ring-black/5 hover:bg-white/55"
+        className="mt-4 rounded-2xl bg-white/35 px-3 py-1.5 text-sm ring-1 ring-black/5 transition hover:bg-white/55"
       >
         Sıfırla
       </button>

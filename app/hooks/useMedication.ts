@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-type AlternateMorningMed = "osende" | "lactoferin";
+type AlternateMorningMed = "osende" | "lactoferrin";
 
 type MedicationData = {
   dateKey: string;
@@ -21,7 +21,7 @@ function getTodayKey() {
   return `${year}-${month}-${day}`;
 }
 
-// 11 Mart 2026 = Osende
+// Başlangıç günü: Osende Demir C
 const ALT_START_DATE = "2026-03-11";
 
 function daysBetween(startDateKey: string, targetDateKey: string) {
@@ -33,7 +33,17 @@ function daysBetween(startDateKey: string, targetDateKey: string) {
 
 function getAlternateMorningForDate(dateKey: string): AlternateMorningMed {
   const diff = daysBetween(ALT_START_DATE, dateKey);
-  return diff % 2 === 0 ? "osende" : "lactoferin";
+  return diff % 2 === 0 ? "osende" : "lactoferrin";
+}
+
+function getDateKeyWithOffset(dateKey: string, offsetDays: number) {
+  const d = new Date(`${dateKey}T00:00:00`);
+  d.setDate(d.getDate() + offsetDays);
+
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+    2,
+    "0"
+  )}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export function useMedication() {
@@ -57,13 +67,7 @@ export function useMedication() {
   );
 
   const tomorrowAlternate = useMemo(() => {
-    const d = new Date(`${medication.dateKey}T00:00:00`);
-    d.setDate(d.getDate() + 1);
-
-    const tomorrowKey = `${d.getFullYear()}-${String(
-      d.getMonth() + 1
-    ).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
+    const tomorrowKey = getDateKeyWithOffset(medication.dateKey, 1);
     return getAlternateMorningForDate(tomorrowKey);
   }, [medication.dateKey]);
 
@@ -114,7 +118,7 @@ export function useMedication() {
           eveningDone: data.evening_done ?? false,
         });
       } else {
-        const freshState = {
+        const freshState: MedicationData = {
           dateKey: todayKey,
           preBreakfastDone: false,
           breakfastDone: false,
@@ -175,6 +179,7 @@ export function useMedication() {
           }
         )
         .subscribe();
+
       setLoaded(true);
     };
 
@@ -190,20 +195,18 @@ export function useMedication() {
     async (next: MedicationData) => {
       if (!userId) return;
 
-      const { error } = await supabase
-        .from("pa_daily_state")
-        .upsert(
-          {
-            user_id: userId,
-            date_key: next.dateKey,
-            pre_breakfast_done: next.preBreakfastDone,
-            breakfast_done: next.breakfastDone,
-            post_breakfast_done: next.postBreakfastDone,
-            evening_done: next.eveningDone,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "user_id,date_key" }
-        );
+      const { error } = await supabase.from("pa_daily_state").upsert(
+        {
+          user_id: userId,
+          date_key: next.dateKey,
+          pre_breakfast_done: next.preBreakfastDone,
+          breakfast_done: next.breakfastDone,
+          post_breakfast_done: next.postBreakfastDone,
+          evening_done: next.eveningDone,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,date_key" }
+      );
 
       if (error) {
         console.error("[Medication] save error:", error);
@@ -221,7 +224,7 @@ export function useMedication() {
           if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
 
           saveTimerRef.current = setTimeout(() => {
-            saveMedication(next);
+            void saveMedication(next);
           }, 300);
         }
 
@@ -233,38 +236,38 @@ export function useMedication() {
 
   const todayAlternateLabel =
     todayAlternate === "osende"
-      ? "Osende Demir C – 2 Adet"
-      : "Lactoferin – 1 Adet";
+      ? "Osende Demir C – 1 Kapsül"
+      : "Lactoferrin – 1 Kapsül";
 
   const tomorrowAlternateLabel =
     tomorrowAlternate === "osende"
-      ? "Osende Demir C – 2 Adet"
-      : "Lactoferin – 1 Adet";
+      ? "Osende Demir C – 1 Kapsül"
+      : "Lactoferrin – 1 Kapsül";
 
-  const markPreBreakfastDone = () => {
+  const markPreBreakfastDone = useCallback(() => {
     patchMedication({ preBreakfastDone: true });
-  };
+  }, [patchMedication]);
 
-  const markBreakfastDone = () => {
+  const markBreakfastDone = useCallback(() => {
     patchMedication({ breakfastDone: true });
-  };
+  }, [patchMedication]);
 
-  const markPostBreakfastDone = () => {
+  const markPostBreakfastDone = useCallback(() => {
     patchMedication({ postBreakfastDone: true });
-  };
+  }, [patchMedication]);
 
-  const markEveningDone = () => {
+  const markEveningDone = useCallback(() => {
     patchMedication({ eveningDone: true });
-  };
+  }, [patchMedication]);
 
-  const resetMedication = () => {
+  const resetMedication = useCallback(() => {
     patchMedication({
       preBreakfastDone: false,
       breakfastDone: false,
       postBreakfastDone: false,
       eveningDone: false,
     });
-  };
+  }, [patchMedication]);
 
   const completedCount =
     Number(medication.preBreakfastDone) +
@@ -274,6 +277,8 @@ export function useMedication() {
 
   return {
     medication,
+    todayAlternate,
+    tomorrowAlternate,
     todayAlternateLabel,
     tomorrowAlternateLabel,
     markPreBreakfastDone,
@@ -282,5 +287,7 @@ export function useMedication() {
     markEveningDone,
     resetMedication,
     completedCount,
+    loaded,
+    userId,
   };
 }
