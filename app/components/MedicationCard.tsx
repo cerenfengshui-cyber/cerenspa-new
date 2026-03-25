@@ -102,8 +102,6 @@ export default function MedicationCard() {
             </p>
 
             <ul className="mt-3 space-y-1 text-sm text-neutral-700">
-              <li>• Thyromazol – 2.5 mg</li>
-              <li>• Dispepta – 1 Adet</li>
               <li>• L-Carnitine / ALCAR – 1 Adet</li>
               <li>• NAC 600 – 1 Adet</li>
               <li>• B-12 – 1 Adet</li>
