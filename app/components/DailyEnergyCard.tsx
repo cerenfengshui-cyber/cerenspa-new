@@ -18,6 +18,8 @@ type DailyStatus = {
 type DailyEnergyData = {
   ok: boolean;
   date: string;
+  fullDateTR?: string;
+  weekdayTR?: string;
   day: DayPart;
   month: DayPart;
   year: DayPart;
@@ -62,20 +64,39 @@ export default function DailyEnergyCard() {
     );
   }
 
-  const dayNumber = new Date(data.date).getDate();
+  const titleDate =
+    data.fullDateTR ||
+    new Intl.DateTimeFormat("tr-TR", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(new Date(data.date));
+
+  const subtitleDate = data.weekdayTR ?? "";
 
   return (
     <section className="rounded-3xl border border-black/5 bg-white/80 p-5 shadow-sm backdrop-blur-md">
-      <div className="flex items-start justify-between">
-        <div className="text-2xl font-semibold text-neutral-900">
-          {dayNumber}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="text-xs uppercase tracking-[0.18em] text-neutral-400">
+            Günün Enerjisi
+          </div>
+
+          <div className="mt-2 text-lg font-semibold text-neutral-900">
+            {titleDate}
+          </div>
+
+          {subtitleDate ? (
+            <div className="mt-1 text-sm text-neutral-500">{subtitleDate}</div>
+          ) : null}
         </div>
 
-        <div className="flex items-center gap-1">
-          {data.statuses?.slice(0, 2).map((item) => (
+        <div className="flex flex-wrap items-center justify-end gap-1">
+          {data.statuses?.map((item) => (
             <span
               key={item.key}
               className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-neutral-200 bg-white text-sm"
+              title={item.text}
             >
               {item.emoji}
             </span>
@@ -88,10 +109,16 @@ export default function DailyEnergyCard() {
           <div className="mb-2 text-[11px] font-medium tracking-wide text-neutral-400">
             GÜN
           </div>
-          <div className={`text-[28px] font-medium ${getStemColor(data.day.stem)}`}>
+          <div
+            className={`text-[28px] font-medium ${getStemColor(data.day.stem)}`}
+          >
             {data.day.stem}
           </div>
-          <div className={`mt-1 text-[28px] font-normal ${getBranchColor(data.day.branch)}`}>
+          <div
+            className={`mt-1 text-[28px] font-normal ${getBranchColor(
+              data.day.branch
+            )}`}
+          >
             {data.day.branch}
           </div>
           <div className="mt-1 text-xs text-neutral-600">{data.day.animal}</div>
@@ -101,35 +128,62 @@ export default function DailyEnergyCard() {
           <div className="mb-2 text-[11px] font-medium tracking-wide text-neutral-400">
             AY
           </div>
-          <div className={`text-[28px] font-medium ${getStemColor(data.month.stem)}`}>
+          <div
+            className={`text-[28px] font-medium ${getStemColor(
+              data.month.stem
+            )}`}
+          >
             {data.month.stem}
           </div>
-          <div className={`mt-1 text-[28px] font-normal ${getBranchColor(data.month.branch)}`}>
+          <div
+            className={`mt-1 text-[28px] font-normal ${getBranchColor(
+              data.month.branch
+            )}`}
+          >
             {data.month.branch}
           </div>
-          <div className="mt-1 text-xs text-neutral-600">{data.month.animal}</div>
+          <div className="mt-1 text-xs text-neutral-600">
+            {data.month.animal}
+          </div>
         </div>
 
         <div className="px-2">
           <div className="mb-2 text-[11px] font-medium tracking-wide text-neutral-400">
             YIL
           </div>
-          <div className={`text-[28px] font-medium ${getStemColor(data.year.stem)}`}>
+          <div
+            className={`text-[28px] font-medium ${getStemColor(data.year.stem)}`}
+          >
             {data.year.stem}
           </div>
-          <div className={`mt-1 text-[28px] font-normal ${getBranchColor(data.year.branch)}`}>
+          <div
+            className={`mt-1 text-[28px] font-normal ${getBranchColor(
+              data.year.branch
+            )}`}
+          >
             {data.year.branch}
           </div>
-          <div className="mt-1 text-xs text-neutral-600">{data.year.animal}</div>
+          <div className="mt-1 text-xs text-neutral-600">
+            {data.year.animal}
+          </div>
         </div>
       </div>
 
       <div className="mt-5 space-y-2">
-        {data.statuses?.map((item) => (
-          <div key={item.key} className="text-sm text-neutral-700">
-            {item.emoji} {item.text}
+        {data.statuses?.length > 0 ? (
+          data.statuses.map((item) => (
+            <div
+              key={item.key}
+              className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700"
+            >
+              {item.emoji} {item.text}
+            </div>
+          ))
+        ) : (
+          <div className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-500">
+            Bugün için belirgin bir enerji notu görünmüyor.
           </div>
-        ))}
+        )}
       </div>
     </section>
   );
