@@ -5,12 +5,23 @@ import { supabase } from "@/lib/supabase";
 
 type AlternateMorningMed = "osende" | "lactoferrin";
 
-type MedicationData = {
+export type MedicationState = {
   dateKey: string;
-  preBreakfastDone: boolean;
-  breakfastDone: boolean;
-  postBreakfastDone: boolean;
-  eveningDone: boolean;
+  ironAlternateDone: boolean;
+  berberineDone: boolean;
+  glutamineDone: boolean;
+  matofinDone: boolean;
+  alcarDone: boolean;
+  nacDone: boolean;
+  b12Done: boolean;
+  biotinDone: boolean;
+  sipralexDone: boolean;
+  dispeptaMorningDone: boolean;
+  kreonDone: boolean;
+  omepaDone: boolean;
+  oceanDone: boolean;
+  dispeptaEveningDone: boolean;
+  melatoninDone: boolean;
 };
 
 function getTodayKey() {
@@ -46,18 +57,65 @@ function getDateKeyWithOffset(dateKey: string, offsetDays: number) {
   )}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function createEmptyMedicationState(dateKey: string): MedicationState {
+  return {
+    dateKey,
+    ironAlternateDone: false,
+    berberineDone: false,
+    glutamineDone: false,
+    matofinDone: false,
+    alcarDone: false,
+    nacDone: false,
+    b12Done: false,
+    biotinDone: false,
+    sipralexDone: false,
+    dispeptaMorningDone: false,
+    kreonDone: false,
+    omepaDone: false,
+    oceanDone: false,
+    dispeptaEveningDone: false,
+    melatoninDone: false,
+  };
+}
+
+function normalizeMedicationState(
+  raw: Partial<MedicationState> | null | undefined,
+  dateKey: string
+): MedicationState {
+  const empty = createEmptyMedicationState(dateKey);
+
+  return {
+    dateKey,
+    ironAlternateDone: raw?.ironAlternateDone ?? empty.ironAlternateDone,
+    berberineDone: raw?.berberineDone ?? empty.berberineDone,
+    glutamineDone: raw?.glutamineDone ?? empty.glutamineDone,
+    matofinDone: raw?.matofinDone ?? empty.matofinDone,
+    alcarDone: raw?.alcarDone ?? empty.alcarDone,
+    nacDone: raw?.nacDone ?? empty.nacDone,
+    b12Done: raw?.b12Done ?? empty.b12Done,
+    biotinDone: raw?.biotinDone ?? empty.biotinDone,
+    sipralexDone: raw?.sipralexDone ?? empty.sipralexDone,
+    dispeptaMorningDone:
+      raw?.dispeptaMorningDone ?? empty.dispeptaMorningDone,
+    kreonDone: raw?.kreonDone ?? empty.kreonDone,
+    omepaDone: raw?.omepaDone ?? empty.omepaDone,
+    oceanDone: raw?.oceanDone ?? empty.oceanDone,
+    dispeptaEveningDone:
+      raw?.dispeptaEveningDone ?? empty.dispeptaEveningDone,
+    melatoninDone: raw?.melatoninDone ?? empty.melatoninDone,
+  };
+}
+
+type MedicationField = Exclude<keyof MedicationState, "dateKey">;
+
 export function useMedication() {
   const todayKey = useMemo(() => getTodayKey(), []);
   const [userId, setUserId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
 
-  const [medication, setMedication] = useState<MedicationData>({
-    dateKey: todayKey,
-    preBreakfastDone: false,
-    breakfastDone: false,
-    postBreakfastDone: false,
-    eveningDone: false,
-  });
+  const [medication, setMedication] = useState<MedicationState>(
+    createEmptyMedicationState(todayKey)
+  );
 
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -96,9 +154,7 @@ export function useMedication() {
 
       const { data, error } = await supabase
         .from("pa_daily_state")
-        .select(
-          "date_key, pre_breakfast_done, breakfast_done, post_breakfast_done, evening_done"
-        )
+        .select("date_key, medication_state")
         .eq("user_id", user.id)
         .eq("date_key", todayKey)
         .maybeSingle();
@@ -110,22 +166,14 @@ export function useMedication() {
       }
 
       if (data) {
-        setMedication({
-          dateKey: data.date_key ?? todayKey,
-          preBreakfastDone: data.pre_breakfast_done ?? false,
-          breakfastDone: data.breakfast_done ?? false,
-          postBreakfastDone: data.post_breakfast_done ?? false,
-          eveningDone: data.evening_done ?? false,
-        });
+        setMedication(
+          normalizeMedicationState(
+            (data.medication_state as Partial<MedicationState> | null) ?? null,
+            data.date_key ?? todayKey
+          )
+        );
       } else {
-        const freshState: MedicationData = {
-          dateKey: todayKey,
-          preBreakfastDone: false,
-          breakfastDone: false,
-          postBreakfastDone: false,
-          eveningDone: false,
-        };
-
+        const freshState = createEmptyMedicationState(todayKey);
         setMedication(freshState);
 
         const { error: insertError } = await supabase
@@ -134,10 +182,7 @@ export function useMedication() {
             {
               user_id: user.id,
               date_key: todayKey,
-              pre_breakfast_done: false,
-              breakfast_done: false,
-              post_breakfast_done: false,
-              evening_done: false,
+              medication_state: freshState,
               updated_at: new Date().toISOString(),
             },
             { onConflict: "user_id,date_key" }
@@ -161,21 +206,14 @@ export function useMedication() {
           (payload) => {
             const row = payload.new as {
               date_key?: string;
-              pre_breakfast_done?: boolean;
-              breakfast_done?: boolean;
-              post_breakfast_done?: boolean;
-              evening_done?: boolean;
+              medication_state?: Partial<MedicationState> | null;
             };
 
             if (row?.date_key !== todayKey) return;
 
-            setMedication({
-              dateKey: row.date_key ?? todayKey,
-              preBreakfastDone: row.pre_breakfast_done ?? false,
-              breakfastDone: row.breakfast_done ?? false,
-              postBreakfastDone: row.post_breakfast_done ?? false,
-              eveningDone: row.evening_done ?? false,
-            });
+            setMedication(
+              normalizeMedicationState(row.medication_state, row.date_key ?? todayKey)
+            );
           }
         )
         .subscribe();
@@ -192,17 +230,14 @@ export function useMedication() {
   }, [todayKey]);
 
   const saveMedication = useCallback(
-    async (next: MedicationData) => {
+    async (next: MedicationState) => {
       if (!userId) return;
 
       const { error } = await supabase.from("pa_daily_state").upsert(
         {
           user_id: userId,
           date_key: next.dateKey,
-          pre_breakfast_done: next.preBreakfastDone,
-          breakfast_done: next.breakfastDone,
-          post_breakfast_done: next.postBreakfastDone,
-          evening_done: next.eveningDone,
+          medication_state: next,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "user_id,date_key" }
@@ -216,7 +251,7 @@ export function useMedication() {
   );
 
   const patchMedication = useCallback(
-    (patch: Partial<MedicationData>) => {
+    (patch: Partial<MedicationState>) => {
       setMedication((prev) => {
         const next = { ...prev, ...patch };
 
@@ -234,6 +269,46 @@ export function useMedication() {
     [loaded, saveMedication]
   );
 
+  const markDone = useCallback(
+    (field: MedicationField) => {
+      patchMedication({ [field]: true } as Partial<MedicationState>);
+    },
+    [patchMedication]
+  );
+
+  const markUndone = useCallback(
+    (field: MedicationField) => {
+      patchMedication({ [field]: false } as Partial<MedicationState>);
+    },
+    [patchMedication]
+  );
+
+  const toggleMedication = useCallback(
+    (field: MedicationField) => {
+      setMedication((prev) => {
+        const next = {
+          ...prev,
+          [field]: !prev[field],
+        };
+
+        if (loaded) {
+          if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+
+          saveTimerRef.current = setTimeout(() => {
+            void saveMedication(next);
+          }, 300);
+        }
+
+        return next;
+      });
+    },
+    [loaded, saveMedication]
+  );
+
+  const resetMedication = useCallback(() => {
+    patchMedication(createEmptyMedicationState(medication.dateKey));
+  }, [medication.dateKey, patchMedication]);
+
   const todayAlternateLabel =
     todayAlternate === "osende"
       ? "Osende Demir C – 1 Kapsül"
@@ -244,50 +319,73 @@ export function useMedication() {
       ? "Osende Demir C – 1 Kapsül"
       : "Lactoferrin – 1 Kapsül";
 
-  const markPreBreakfastDone = useCallback(() => {
-    patchMedication({ preBreakfastDone: true });
-  }, [patchMedication]);
+  const completedCount = useMemo(() => {
+    const keys: MedicationField[] = [
+      "ironAlternateDone",
+      "berberineDone",
+      "glutamineDone",
+      "matofinDone",
+      "alcarDone",
+      "nacDone",
+      "b12Done",
+      "biotinDone",
+      "sipralexDone",
+      "dispeptaMorningDone",
+      "kreonDone",
+      "omepaDone",
+      "oceanDone",
+      "dispeptaEveningDone",
+      "melatoninDone",
+    ];
 
-  const markBreakfastDone = useCallback(() => {
-    patchMedication({ breakfastDone: true });
-  }, [patchMedication]);
+    return keys.reduce((sum, key) => sum + Number(medication[key]), 0);
+  }, [medication]);
 
-  const markPostBreakfastDone = useCallback(() => {
-    patchMedication({ postBreakfastDone: true });
-  }, [patchMedication]);
+  const totalCount = 15;
 
-  const markEveningDone = useCallback(() => {
-    patchMedication({ eveningDone: true });
-  }, [patchMedication]);
+  const preBreakfastCompleted = Number(medication.ironAlternateDone);
 
-  const resetMedication = useCallback(() => {
-    patchMedication({
-      preBreakfastDone: false,
-      breakfastDone: false,
-      postBreakfastDone: false,
-      eveningDone: false,
-    });
-  }, [patchMedication]);
+  const breakfastCompleted =
+    Number(medication.berberineDone) +
+    Number(medication.glutamineDone) +
+    Number(medication.matofinDone);
 
-  const completedCount =
-    Number(medication.preBreakfastDone) +
-    Number(medication.breakfastDone) +
-    Number(medication.postBreakfastDone) +
-    Number(medication.eveningDone);
+  const postBreakfastCompleted =
+    Number(medication.alcarDone) +
+    Number(medication.nacDone) +
+    Number(medication.b12Done) +
+    Number(medication.biotinDone) +
+    Number(medication.sipralexDone) +
+    Number(medication.dispeptaMorningDone);
+
+  const eveningCompleted =
+    Number(medication.kreonDone) +
+    Number(medication.omepaDone) +
+    Number(medication.oceanDone) +
+    Number(medication.dispeptaEveningDone) +
+    Number(medication.melatoninDone);
 
   return {
     medication,
+    loaded,
+    userId,
+
     todayAlternate,
     tomorrowAlternate,
     todayAlternateLabel,
     tomorrowAlternateLabel,
-    markPreBreakfastDone,
-    markBreakfastDone,
-    markPostBreakfastDone,
-    markEveningDone,
+
+    markDone,
+    markUndone,
+    toggleMedication,
     resetMedication,
+
     completedCount,
-    loaded,
-    userId,
+    totalCount,
+
+    preBreakfastCompleted,
+    breakfastCompleted,
+    postBreakfastCompleted,
+    eveningCompleted,
   };
 }
