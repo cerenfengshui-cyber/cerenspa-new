@@ -1,3 +1,4 @@
+// useMedication.ts
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -17,9 +18,11 @@ export type MedicationState = {
   biotinDone: boolean;
   sipralexDone: boolean;
   dispeptaMorningDone: boolean;
+  gstExtraDone: boolean;
   kreonDone: boolean;
   omepaDone: boolean;
   oceanDone: boolean;
+  curcuminDone: boolean;
   dispeptaEveningDone: boolean;
   melatoninDone: boolean;
 };
@@ -70,9 +73,11 @@ function createEmptyMedicationState(dateKey: string): MedicationState {
     biotinDone: false,
     sipralexDone: false,
     dispeptaMorningDone: false,
+    gstExtraDone: false,
     kreonDone: false,
     omepaDone: false,
     oceanDone: false,
+    curcuminDone: false,
     dispeptaEveningDone: false,
     melatoninDone: false,
   };
@@ -97,9 +102,11 @@ function normalizeMedicationState(
     sipralexDone: raw?.sipralexDone ?? empty.sipralexDone,
     dispeptaMorningDone:
       raw?.dispeptaMorningDone ?? empty.dispeptaMorningDone,
+    gstExtraDone: raw?.gstExtraDone ?? empty.gstExtraDone,
     kreonDone: raw?.kreonDone ?? empty.kreonDone,
     omepaDone: raw?.omepaDone ?? empty.omepaDone,
     oceanDone: raw?.oceanDone ?? empty.oceanDone,
+    curcuminDone: raw?.curcuminDone ?? empty.curcuminDone,
     dispeptaEveningDone:
       raw?.dispeptaEveningDone ?? empty.dispeptaEveningDone,
     melatoninDone: raw?.melatoninDone ?? empty.melatoninDone,
@@ -212,7 +219,10 @@ export function useMedication() {
             if (row?.date_key !== todayKey) return;
 
             setMedication(
-              normalizeMedicationState(row.medication_state, row.date_key ?? todayKey)
+              normalizeMedicationState(
+                row.medication_state,
+                row.date_key ?? todayKey
+              )
             );
           }
         )
@@ -221,7 +231,7 @@ export function useMedication() {
       setLoaded(true);
     };
 
-    loadMedication();
+    void loadMedication();
 
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -331,9 +341,11 @@ export function useMedication() {
       "biotinDone",
       "sipralexDone",
       "dispeptaMorningDone",
+      "gstExtraDone",
       "kreonDone",
       "omepaDone",
       "oceanDone",
+      "curcuminDone",
       "dispeptaEveningDone",
       "melatoninDone",
     ];
@@ -341,7 +353,7 @@ export function useMedication() {
     return keys.reduce((sum, key) => sum + Number(medication[key]), 0);
   }, [medication]);
 
-  const totalCount = 15;
+  const totalCount = 17;
 
   const preBreakfastCompleted = Number(medication.ironAlternateDone);
 
@@ -356,12 +368,14 @@ export function useMedication() {
     Number(medication.b12Done) +
     Number(medication.biotinDone) +
     Number(medication.sipralexDone) +
-    Number(medication.dispeptaMorningDone);
+    Number(medication.dispeptaMorningDone) +
+    Number(medication.gstExtraDone);
 
   const eveningCompleted =
     Number(medication.kreonDone) +
     Number(medication.omepaDone) +
     Number(medication.oceanDone) +
+    Number(medication.curcuminDone) +
     Number(medication.dispeptaEveningDone) +
     Number(medication.melatoninDone);
 

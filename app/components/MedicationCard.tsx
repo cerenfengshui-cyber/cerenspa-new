@@ -1,3 +1,4 @@
+// MedicationCard.tsx
 "use client";
 
 import { useMedication } from "../hooks/useMedication";
@@ -48,8 +49,8 @@ export default function MedicationCard() {
 
   const preBreakfastTotal = 1;
   const breakfastTotal = 3;
-  const postBreakfastTotal = 6;
-  const eveningTotal = 5;
+  const postBreakfastTotal = 7;
+  const eveningTotal = 6;
 
   const preBreakfastDone = preBreakfastCompleted === preBreakfastTotal;
   const breakfastDone = breakfastCompleted === breakfastTotal;
@@ -122,7 +123,7 @@ export default function MedicationCard() {
             />
 
             <MedicationButton
-              label="Glutamin – 1 Adet"
+              label="Glutamin – 1 Saşe"
               done={medication.glutamineDone}
               onClick={() => toggleMedication("glutamineDone")}
             />
@@ -169,7 +170,7 @@ export default function MedicationCard() {
             />
 
             <MedicationButton
-              label="NAC 600 – 1 Adet"
+              label="NAC – 1 Adet"
               done={medication.nacDone}
               onClick={() => toggleMedication("nacDone")}
             />
@@ -196,6 +197,12 @@ export default function MedicationCard() {
               label="Dispepta – 1 Adet"
               done={medication.dispeptaMorningDone}
               onClick={() => toggleMedication("dispeptaMorningDone")}
+            />
+
+            <MedicationButton
+              label="GST Extra – 1 Saşe"
+              done={medication.gstExtraDone}
+              onClick={() => toggleMedication("gstExtraDone")}
             />
           </div>
 
@@ -247,22 +254,28 @@ export default function MedicationCard() {
             />
 
             <MedicationButton
+              label="Curcumin Pure – Ölçüne göre"
+              done={medication.curcuminDone}
+              onClick={() => toggleMedication("curcuminDone")}
+            />
+
+            <MedicationButton
               label="Dispepta – 1 Adet"
               done={medication.dispeptaEveningDone}
               onClick={() => toggleMedication("dispeptaEveningDone")}
             />
 
             <MedicationButton
-              label="Melatonin – 5 mg"
+              label="Melatonin – 1 Adet"
               done={medication.melatoninDone}
               onClick={() => toggleMedication("melatoninDone")}
             />
           </div>
 
           <div className="mt-3 rounded-2xl bg-white/40 p-3 text-xs text-neutral-600 ring-1 ring-black/5">
-            <p>🍽 Kreon + OmePa DK2 + Ocean D3 K2 akşam yemeği ile birlikte</p>
-            <p>🍃 Dispepta yemek sonrası alınır</p>
-            <p>🫒 Yağlı / normal bir öğünle almak daha iyi olur</p>
+            <p>🍽 Kreon akşam yemeğinin ilk lokmalarıyla alınır</p>
+            <p>🍽 OmePa + Ocean D3 K2 + Curcumin yemekle birlikte daha uygundur</p>
+            <p>🍃 Dispepta akşam yemeğinden sonra alınır</p>
             <p>🌙 Melatonin yatmadan 30–60 dk önce</p>
           </div>
 
