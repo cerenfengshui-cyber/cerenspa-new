@@ -1,4 +1,3 @@
-// useMedication.ts
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -27,16 +26,19 @@ export type MedicationState = {
   melatoninDone: boolean;
 };
 
-function getTodayKey() {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
+type MedicationField = Exclude<keyof MedicationState, "dateKey">;
 
 // Başlangıç günü: Osende Demir C
 const ALT_START_DATE = "2026-03-11";
+
+function getTodayKey() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Istanbul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
 
 function daysBetween(startDateKey: string, targetDateKey: string) {
   const start = new Date(`${startDateKey}T00:00:00`);
@@ -113,8 +115,6 @@ function normalizeMedicationState(
   };
 }
 
-type MedicationField = Exclude<keyof MedicationState, "dateKey">;
-
 export function useMedication() {
   const todayKey = useMemo(() => getTodayKey(), []);
   const [userId, setUserId] = useState<string | null>(null);
@@ -124,7 +124,10 @@ export function useMedication() {
     createEmptyMedicationState(todayKey)
   );
 
-  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestMedicationRef = useRef<MedicationState>(
+    createEmptyMedicationState(todayKey)
+  );
 
   const todayAlternate = useMemo(
     () => getAlternateMorningForDate(medication.dateKey),
@@ -136,26 +139,57 @@ export function useMedication() {
     return getAlternateMorningForDate(tomorrowKey);
   }, [medication.dateKey]);
 
+  const saveMedication = useCallback(
+    async (next: MedicationState, forcedUserId?: string | null) => {
+      const activeUserId = forcedUserId ?? userId;
+      if (!activeUserId) return;
+
+      const { error } = await supabase.from("pa_daily_state").upsert(
+        {
+          user_id: activeUserId,
+          date_key: next.dateKey,
+          medication_state: next,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,date_key" }
+      );
+
+      if (error) {
+        console.error("[Medication] save error:", error);
+      }
+    },
+    [userId]
+  );
+
   useEffect(() => {
+    latestMedicationRef.current = medication;
+  }, [medication]);
+
+  useEffect(() => {
+    let mounted = true;
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const loadMedication = async () => {
       const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-      if (userError) {
-        console.error("[Medication] User alınamadı:", userError);
-        setLoaded(true);
+      if (sessionError) {
+        console.error("[Medication] Session alınamadı:", sessionError);
+        if (mounted) setLoaded(true);
         return;
       }
+
+      const user = session?.user;
 
       if (!user) {
         console.warn("[Medication] Giriş yapan kullanıcı yok.");
-        setLoaded(true);
+        if (mounted) setLoaded(true);
         return;
       }
+
+      if (!mounted) return;
 
       setUserId(user.id);
 
@@ -168,36 +202,29 @@ export function useMedication() {
 
       if (error) {
         console.error("[Medication] load error:", error);
-        setLoaded(true);
+        if (mounted) setLoaded(true);
         return;
       }
 
       if (data) {
-        setMedication(
-          normalizeMedicationState(
-            (data.medication_state as Partial<MedicationState> | null) ?? null,
-            data.date_key ?? todayKey
-          )
+        const normalized = normalizeMedicationState(
+          (data.medication_state as Partial<MedicationState> | null) ?? null,
+          data.date_key ?? todayKey
         );
+
+        if (mounted) {
+          setMedication(normalized);
+          latestMedicationRef.current = normalized;
+        }
       } else {
         const freshState = createEmptyMedicationState(todayKey);
-        setMedication(freshState);
 
-        const { error: insertError } = await supabase
-          .from("pa_daily_state")
-          .upsert(
-            {
-              user_id: user.id,
-              date_key: todayKey,
-              medication_state: freshState,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "user_id,date_key" }
-          );
-
-        if (insertError) {
-          console.error("[Medication] initial insert error:", insertError);
+        if (mounted) {
+          setMedication(freshState);
+          latestMedicationRef.current = freshState;
         }
+
+        await saveMedication(freshState, user.id);
       }
 
       channel = supabase
@@ -218,65 +245,73 @@ export function useMedication() {
 
             if (row?.date_key !== todayKey) return;
 
-            setMedication(
-              normalizeMedicationState(
-                row.medication_state,
-                row.date_key ?? todayKey
-              )
+            const normalized = normalizeMedicationState(
+              row.medication_state,
+              row.date_key ?? todayKey
             );
+
+            setMedication(normalized);
+            latestMedicationRef.current = normalized;
           }
         )
         .subscribe();
 
-      setLoaded(true);
+      if (mounted) setLoaded(true);
     };
 
     void loadMedication();
 
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const nextUserId = session?.user?.id ?? null;
+      setUserId(nextUserId);
+    });
+
+    const flushOnLeave = () => {
+      if (!userId) return;
+      void saveMedication(latestMedicationRef.current, userId);
+    };
+
+    window.addEventListener("pagehide", flushOnLeave);
+    window.addEventListener("beforeunload", flushOnLeave);
+
     return () => {
+      mounted = false;
+
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       if (channel) supabase.removeChannel(channel);
+
+      subscription.unsubscribe();
+      window.removeEventListener("pagehide", flushOnLeave);
+      window.removeEventListener("beforeunload", flushOnLeave);
     };
-  }, [todayKey]);
+  }, [todayKey, saveMedication, userId]);
 
-  const saveMedication = useCallback(
-    async (next: MedicationState) => {
-      if (!userId) return;
+  const scheduleSave = useCallback(
+    (next: MedicationState) => {
+      latestMedicationRef.current = next;
 
-      const { error } = await supabase.from("pa_daily_state").upsert(
-        {
-          user_id: userId,
-          date_key: next.dateKey,
-          medication_state: next,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id,date_key" }
-      );
+      if (!loaded) return;
 
-      if (error) {
-        console.error("[Medication] save error:", error);
-      }
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+
+      saveTimerRef.current = setTimeout(() => {
+        void saveMedication(next);
+      }, 150);
     },
-    [userId]
+    [loaded, saveMedication]
   );
 
   const patchMedication = useCallback(
     (patch: Partial<MedicationState>) => {
       setMedication((prev) => {
         const next = { ...prev, ...patch };
-
-        if (loaded) {
-          if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-
-          saveTimerRef.current = setTimeout(() => {
-            void saveMedication(next);
-          }, 300);
-        }
-
+        scheduleSave(next);
         return next;
       });
     },
-    [loaded, saveMedication]
+    [scheduleSave]
   );
 
   const markDone = useCallback(
@@ -300,19 +335,11 @@ export function useMedication() {
           ...prev,
           [field]: !prev[field],
         };
-
-        if (loaded) {
-          if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-
-          saveTimerRef.current = setTimeout(() => {
-            void saveMedication(next);
-          }, 300);
-        }
-
+        scheduleSave(next);
         return next;
       });
     },
-    [loaded, saveMedication]
+    [scheduleSave]
   );
 
   const resetMedication = useCallback(() => {
