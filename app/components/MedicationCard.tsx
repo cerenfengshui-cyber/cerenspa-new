@@ -4,22 +4,25 @@ import { useMemo } from "react";
 import { useMedication } from "../hooks/useMedication";
 
 type MedicationField =
-  | "ironAlternateDone"
-  | "berberineDone"
-  | "glutamineDone"
-  | "matofinDone"
-  | "alcarDone"
-  | "nacDone"
-  | "b12Done"
-  | "biotinDone"
-  | "sipralexDone"
+  | "ironComboDone"
+  | "berberineMorningDone"
   | "dispeptaMorningDone"
-  | "gstExtraDone"
-  | "kreonDone"
-  | "omepaDone"
-  | "oceanDone"
-  | "curcuminDone"
+  | "alcarMorningDone"
+  | "nacMorningDone"
+  | "kreonMorningDone"
+  | "ligoneBerberisDone"
+  | "b12Done"
+  | "d3k2Done"
+  | "lTheanineMorningDone"
+  | "lCarnitineDone"
+  | "berberineEveningDone"
+  | "kreonEveningDone"
   | "dispeptaEveningDone"
+  | "alcarEveningDone"
+  | "omepaDone"
+  | "nacEveningDone"
+  | "lTheanineEveningDone"
+  | "cipralexDone"
   | "melatoninDone";
 
 type MedicationSetCardProps = {
@@ -27,9 +30,11 @@ type MedicationSetCardProps = {
   labels: string[];
   notes: string[];
   done: boolean;
-  onComplete: () => void;
+  onComplete?: () => void;
   completedText: string;
   extraCompletedText?: string;
+  buttonLabel?: string;
+  passiveStateText?: string;
 };
 
 function MedicationSetCard({
@@ -40,6 +45,8 @@ function MedicationSetCard({
   onComplete,
   completedText,
   extraCompletedText,
+  buttonLabel = "İçtim",
+  passiveStateText,
 }: MedicationSetCardProps) {
   return (
     <div className="rounded-2xl bg-white/35 p-4 ring-1 ring-black/5">
@@ -64,13 +71,21 @@ function MedicationSetCard({
             ))}
           </div>
 
-          <button
-            onClick={onComplete}
-            className="mt-3 flex w-full items-center justify-between rounded-2xl bg-white/50 px-3 py-2 text-sm text-neutral-700 ring-1 ring-black/5 transition hover:bg-white/70"
-          >
-            <span>İçtim</span>
-            <span className="ml-3 text-xs font-medium">Tamamla</span>
-          </button>
+          {onComplete ? (
+            <button
+              onClick={onComplete}
+              className="mt-3 flex w-full items-center justify-between rounded-2xl bg-white/50 px-3 py-2 text-sm text-neutral-700 ring-1 ring-black/5 transition hover:bg-white/70"
+            >
+              <span>{buttonLabel}</span>
+              <span className="ml-3 text-xs font-medium">Tamamla</span>
+            </button>
+          ) : passiveStateText ? (
+            <div className="mt-3 rounded-2xl bg-amber-50 p-3 ring-1 ring-amber-200">
+              <p className="text-sm font-medium text-amber-700">
+                {passiveStateText}
+              </p>
+            </div>
+          ) : null}
         </>
       ) : (
         <div className="mt-3 rounded-2xl bg-green-50 p-3 ring-1 ring-green-200">
@@ -87,8 +102,10 @@ function MedicationSetCard({
 export default function MedicationCard() {
   const {
     medication,
-    todayAlternateLabel,
-    tomorrowAlternateLabel,
+    isIronActiveDay,
+    todayIronLabel,
+    tomorrowIronLabel,
+    isLTheanineMorningActive,
     toggleMedication,
     resetMedication,
   } = useMedication();
@@ -101,170 +118,237 @@ export default function MedicationCard() {
     });
   };
 
-  const preBreakfastDone = medication.ironAlternateDone;
+  const ironDone = isIronActiveDay ? medication.ironComboDone : true;
 
-  const beforeBreakfastDone =
-    medication.berberineDone && medication.glutamineDone;
+  const beforeBreakfastDone = medication.berberineMorningDone;
 
-  const matofinDone = medication.matofinDone;
+  const afterBreakfastFields: MedicationField[] = [
+    "dispeptaMorningDone",
+    "alcarMorningDone",
+    "nacMorningDone",
+    "kreonMorningDone",
+    "ligoneBerberisDone",
+    "b12Done",
+    "d3k2Done",
+  ];
 
-  const afterBreakfastDone =
-    medication.alcarDone &&
-    medication.nacDone &&
-    medication.b12Done &&
-    medication.biotinDone &&
-    medication.sipralexDone &&
-    medication.dispeptaMorningDone &&
-    medication.gstExtraDone;
+  if (isLTheanineMorningActive) {
+    afterBreakfastFields.push("lTheanineMorningDone");
+  }
 
-  const dinnerDone =
-    medication.kreonDone &&
+  const afterBreakfastDone = afterBreakfastFields.every(
+    (field) => medication[field]
+  );
+
+  const sportDone = medication.lCarnitineDone;
+
+  const beforeDinnerDone = medication.berberineEveningDone;
+
+  const afterDinnerDone =
+    medication.kreonEveningDone &&
+    medication.dispeptaEveningDone &&
+    medication.alcarEveningDone &&
     medication.omepaDone &&
-    medication.oceanDone &&
-    medication.curcuminDone &&
-    medication.dispeptaEveningDone;
+    medication.nacEveningDone &&
+    medication.lTheanineEveningDone;
 
-  const sleepDone = medication.melatoninDone;
+  const cipralexDone = medication.cipralexDone;
+  const melatoninDone = medication.melatoninDone;
 
   const completedSetsCount = useMemo(() => {
     return [
-      preBreakfastDone,
+      ironDone,
       beforeBreakfastDone,
-      matofinDone,
       afterBreakfastDone,
-      dinnerDone,
-      sleepDone,
+      beforeDinnerDone,
+      afterDinnerDone,
+      cipralexDone,
+      melatoninDone,
     ].filter(Boolean).length;
   }, [
-    preBreakfastDone,
+    ironDone,
     beforeBreakfastDone,
-    matofinDone,
     afterBreakfastDone,
-    dinnerDone,
-    sleepDone,
+    beforeDinnerDone,
+    afterDinnerDone,
+    cipralexDone,
+    melatoninDone,
   ]);
+
+  const afterBreakfastLabels = [
+    "Dispepta – 1 Adet",
+    "ALCAR – 1 Adet",
+    "NAC 600 – 1 Adet",
+    "Kreon – 1 Adet",
+    "Ligone Berberis – 1 Adet",
+    "B-12 – 1 Adet",
+    "D3-K2 – 8 Damla",
+  ];
+
+  if (isLTheanineMorningActive) {
+    afterBreakfastLabels.push("L-Theanine – 1 Adet");
+  }
+
+  const afterBreakfastNotes = [
+    "✅ Kahvaltıdan sonra tok karnına al",
+    "🍽 Kreon’u yemeğin ilk lokmalarıyla almak daha uygundur",
+    "💧 D3-K2 damlayı bu öğünde kullan",
+  ];
+
+  if (isLTheanineMorningActive) {
+    afterBreakfastNotes.push(
+      "🌿 L-Theanine bu tarihten itibaren sabah + akşam kullanılacak"
+    );
+  } else {
+    afterBreakfastNotes.push(
+      "🌿 L-Theanine şu an sadece akşam kullanılıyor, 1 hafta sonra sabaha da eklenecek"
+    );
+  }
 
   return (
     <div className="rounded-3xl bg-white/30 p-5 shadow-sm ring-1 ring-black/5 backdrop-blur-2xl">
       <div className="flex items-start justify-between">
         <h2 className="text-base font-medium">İlaç & Takviye</h2>
         <span className="text-xs text-neutral-500">
-          {completedSetsCount}/6 tamamlandı
+          {completedSetsCount}/7 tamamlandı
         </span>
       </div>
 
       <div className="mt-4 space-y-4">
         <MedicationSetCard
           title="🌅 Sabah aç karnına"
-          labels={[todayAlternateLabel]}
-          notes={[
-            "⏳ 20–30 dk bekle",
-            "☕ Kahve / çay 1 saat yok",
-            "🥛 Süt ürünleri 1–2 saat yok",
-            "💊 Başka takviye yok",
-            "💧 1 bardak su ile, tek başına al",
-          ]}
-          done={preBreakfastDone}
-          onComplete={() => setDoneOnlyIfNeeded(["ironAlternateDone"])}
-          completedText="Sabah aç karnına tamamlandı"
-          extraCompletedText={`Yarın sıra: ${tomorrowAlternateLabel}`}
+          labels={
+            isIronActiveDay
+              ? ["Osende Demir C – 2 Adet", "Lactoferrin – 1 Adet"]
+              : ["Bugün demir günü değil"]
+          }
+          notes={
+            isIronActiveDay
+              ? [
+                  "⏳ Aktif gün: ikisini birlikte al",
+                  "☕ Kahve / çay en az 1 saat yok",
+                  "🥛 Süt ürünleri 1–2 saat yok",
+                  "💊 Mümkünse tek başına al",
+                  "🌙 Doktor notu: istersen gece yatmadan önce de kullanılabilir",
+                ]
+              : [
+                  "🫶 Bugün boş gün",
+                  "📅 Bu protokol gün aşırı aktif gün / boş gün şeklinde ilerler",
+                ]
+          }
+          done={ironDone}
+          onComplete={
+            isIronActiveDay
+              ? () => setDoneOnlyIfNeeded(["ironComboDone"])
+              : undefined
+          }
+          completedText={
+            isIronActiveDay
+              ? "Demir + Lactoferrin tamamlandı"
+              : "Bugün demir protokolünde boş gündü"
+          }
+          extraCompletedText={`Yarın: ${tomorrowIronLabel}`}
+          passiveStateText={!isIronActiveDay ? "Bugün boş gün" : undefined}
         />
 
         <MedicationSetCard
-          title="⏳ 20–30 dk sonra / kahvaltı öncesi"
-          labels={["Berberine – 1 Adet", "Glutamin – 1 Saşe"]}
+          title="⏳ Kahvaltıdan 20 dk önce"
+          labels={["Berberine – 1 Adet"]}
           notes={[
-            "⏳ Berberine + Glutamin sonrası 10–15 dk bekle",
+            "⏳ Sonrasında yaklaşık 20 dk bekle",
             "🍽 Sonra kahvaltı yap",
-            "⚠️ Mide hassasiyeti olursa Berberine’yi kahvaltıya kaydır",
           ]}
           done={beforeBreakfastDone}
-          onComplete={() =>
-            setDoneOnlyIfNeeded(["berberineDone", "glutamineDone"])
-          }
-          completedText="Kahvaltı öncesi set tamamlandı"
+          onComplete={() => setDoneOnlyIfNeeded(["berberineMorningDone"])}
+          completedText="Kahvaltı öncesi Berberine tamamlandı"
         />
 
         <MedicationSetCard
-          title="🍽 Kahvaltı sırasında"
-          labels={["Matofin – 500 mg"]}
-          notes={[
-            "💊 Matofin’i kahvaltıda 1–2 lokma sonra al",
-            "☕ Kahve istersen kahvaltı ile birlikte içebilirsin",
-          ]}
-          done={matofinDone}
-          onComplete={() => setDoneOnlyIfNeeded(["matofinDone"])}
-          completedText="Matofin tamamlandı"
-        />
-
-        <MedicationSetCard
-          title="☀️ Kahvaltıdan hemen sonra"
-          labels={[
-            "L-Carnitine / ALCAR – 1 Adet",
-            "NAC – 1 Adet",
-            "B-12 – 1 Adet",
-            "Biotin – 1 Adet",
-            "Sipralex – 1 Adet",
-            "Dispepta – 1 Adet",
-            "GST Extra – 1 Saşe",
-          ]}
-          notes={[
-            "✅ Kahvaltı biter bitmez alabilirsin",
-            "☀️ ALCAR sabah alınır, akşama bırakılmaz",
-            "💊 Sipralex her gün aynı saatte alınmalı",
-            "🍃 Dispepta yemek sonrası sindirim için",
-            "🧪 Biotin kullanıyorsan kan tahlili öncesi doktora/laba söyle",
-            "☕ Kahveyi kahvaltı ile veya hemen sonrasında içebilirsin",
-          ]}
+          title="☀️ Kahvaltıdan sonra tok"
+          labels={afterBreakfastLabels}
+          notes={afterBreakfastNotes}
           done={afterBreakfastDone}
-          onComplete={() =>
-            setDoneOnlyIfNeeded([
-              "alcarDone",
-              "nacDone",
-              "b12Done",
-              "biotinDone",
-              "sipralexDone",
-              "dispeptaMorningDone",
-              "gstExtraDone",
-            ])
-          }
+          onComplete={() => setDoneOnlyIfNeeded(afterBreakfastFields)}
           completedText="Kahvaltı sonrası set tamamlandı"
         />
 
         <MedicationSetCard
-          title="🌙 Akşam yemeği sonrasında"
-          labels={[
-            "Kreon – 1 Adet",
-            "OmePa DK2 – 2 Adet",
-            "Ocean D3 K2 – 8 damla",
-            "Curcumin Pure – Ölçüne göre",
-            "Dispepta – 1 Adet",
-          ]}
+          title="🏃‍♀️ Spordan 30 dk önce (opsiyonel)"
+          labels={["L-Carnitine (Solgar) 1000 mg – 1 Adet"]}
           notes={[
-            "🍽 Kreon akşam yemeğinin ilk lokmalarıyla alınır",
-            "🍽 OmePa + Ocean D3 K2 + Curcumin yemekle birlikte daha uygundur",
-            "🍃 Dispepta akşam yemeğinden sonra alınır",
+            "🏃‍♀️ Sadece spor yapılacak günlerde kullan",
+            "⏱ Spordan yaklaşık 30 dk önce al",
+            "📌 Bu alan isteğe bağlıdır, günlük zorunlu tamamlanma sayısına dahil edilmedi",
           ]}
-          done={dinnerDone}
-          onComplete={() =>
-            setDoneOnlyIfNeeded([
-              "kreonDone",
-              "omepaDone",
-              "oceanDone",
-              "curcuminDone",
-              "dispeptaEveningDone",
-            ])
-          }
-          completedText="Akşam seti tamamlandı"
+          done={sportDone}
+          onComplete={() => setDoneOnlyIfNeeded(["lCarnitineDone"])}
+          completedText="Spor öncesi L-Carnitine tamamlandı"
+          buttonLabel="Spor öncesi aldım"
         />
 
         <MedicationSetCard
-          title="😴 Uyumadan 1 saat önce"
+          title="🌆 Akşam yemeğinden 30 dk önce"
+          labels={["Berberine – 1 Adet"]}
+          notes={[
+            "⏳ Akşam yemeğinden yaklaşık 30 dk önce al",
+            "🍽 Sonra akşam yemeğine geç",
+          ]}
+          done={beforeDinnerDone}
+          onComplete={() => setDoneOnlyIfNeeded(["berberineEveningDone"])}
+          completedText="Akşam öncesi Berberine tamamlandı"
+        />
+
+        <MedicationSetCard
+          title="🌙 Akşam yemekten sonra tok"
+          labels={[
+            "Kreon – 1 Adet",
+            "Dispepta – 1 Adet",
+            "ALCAR – 1 Adet",
+            "OmePa DK2 – 2 Adet",
+            "NAC 600 – 1 Adet",
+            "L-Theanine – 1 Adet",
+          ]}
+          notes={[
+            "🍽 Kreon’u akşam yemeğinin ilk lokmalarıyla al",
+            "🌿 L-Theanine ilk hafta sadece akşam kullanılır",
+            "🌿 Sonrasında sabah + akşam devam eder",
+          ]}
+          done={afterDinnerDone}
+          onComplete={() =>
+            setDoneOnlyIfNeeded([
+              "kreonEveningDone",
+              "dispeptaEveningDone",
+              "alcarEveningDone",
+              "omepaDone",
+              "nacEveningDone",
+              "lTheanineEveningDone",
+            ])
+          }
+          completedText="Akşam sonrası set tamamlandı"
+        />
+
+        <MedicationSetCard
+          title="🕗 Akşam 20:00"
+          labels={["Cipralex – 1 Adet"]}
+          notes={[
+            "🕗 Her gün sabit saat: 20:00",
+            "📌 Mümkün olduğunca aynı saatte almaya çalış",
+          ]}
+          done={cipralexDone}
+          onComplete={() => setDoneOnlyIfNeeded(["cipralexDone"])}
+          completedText="Cipralex tamamlandı"
+        />
+
+        <MedicationSetCard
+          title="🕘 Akşam 21:00"
           labels={["Melatonin – 1 Adet"]}
-          notes={["🌙 Melatonin yatmadan 30–60 dk önce alınır"]}
-          done={sleepDone}
+          notes={[
+            "🕘 Her gün sabit saat: 21:00",
+            "🌙 Uyku rutinini desteklemek için aynı saatte kalması iyi olur",
+          ]}
+          done={melatoninDone}
           onComplete={() => setDoneOnlyIfNeeded(["melatoninDone"])}
-          completedText="Gece seti tamamlandı"
+          completedText="Melatonin tamamlandı"
         />
       </div>
 

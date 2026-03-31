@@ -3,33 +3,48 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-type AlternateMorningMed = "osende" | "lactoferrin";
-
 export type MedicationState = {
   dateKey: string;
-  ironAlternateDone: boolean;
-  berberineDone: boolean;
-  glutamineDone: boolean;
-  matofinDone: boolean;
-  alcarDone: boolean;
-  nacDone: boolean;
-  b12Done: boolean;
-  biotinDone: boolean;
-  sipralexDone: boolean;
+  ironComboDone: boolean;
+  berberineMorningDone: boolean;
   dispeptaMorningDone: boolean;
-  gstExtraDone: boolean;
-  kreonDone: boolean;
-  omepaDone: boolean;
-  oceanDone: boolean;
-  curcuminDone: boolean;
+  alcarMorningDone: boolean;
+  nacMorningDone: boolean;
+  kreonMorningDone: boolean;
+  ligoneBerberisDone: boolean;
+  b12Done: boolean;
+  d3k2Done: boolean;
+  lTheanineMorningDone: boolean;
+  lCarnitineDone: boolean;
+  berberineEveningDone: boolean;
+  kreonEveningDone: boolean;
   dispeptaEveningDone: boolean;
+  alcarEveningDone: boolean;
+  omepaDone: boolean;
+  nacEveningDone: boolean;
+  lTheanineEveningDone: boolean;
+  cipralexDone: boolean;
   melatoninDone: boolean;
 };
 
 type MedicationField = Exclude<keyof MedicationState, "dateKey">;
 
-// Başlangıç günü: Osende Demir C
-const ALT_START_DATE = "2026-03-11";
+/**
+ * Demir protokolü:
+ * 2026-03-30 = aktif gün
+ * aktif günlerde:
+ * - Osende Demir C – 2 adet
+ * - Lactoferrin – 1 adet
+ * ertesi gün boş
+ */
+const IRON_PATTERN_START_DATE = "2026-03-30";
+
+/**
+ * L-Theanine:
+ * ilk hafta sadece akşam,
+ * bu tarihten itibaren sabah + akşam
+ */
+const L_THEANINE_DOUBLE_START_DATE = "2026-04-07";
 
 function getTodayKey() {
   return new Intl.DateTimeFormat("en-CA", {
@@ -40,20 +55,19 @@ function getTodayKey() {
   }).format(new Date());
 }
 
+function parseDateKey(dateKey: string) {
+  return new Date(`${dateKey}T00:00:00`);
+}
+
 function daysBetween(startDateKey: string, targetDateKey: string) {
-  const start = new Date(`${startDateKey}T00:00:00`);
-  const target = new Date(`${targetDateKey}T00:00:00`);
+  const start = parseDateKey(startDateKey);
+  const target = parseDateKey(targetDateKey);
   const diff = target.getTime() - start.getTime();
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
 
-function getAlternateMorningForDate(dateKey: string): AlternateMorningMed {
-  const diff = daysBetween(ALT_START_DATE, dateKey);
-  return diff % 2 === 0 ? "osende" : "lactoferrin";
-}
-
 function getDateKeyWithOffset(dateKey: string, offsetDays: number) {
-  const d = new Date(`${dateKey}T00:00:00`);
+  const d = parseDateKey(dateKey);
   d.setDate(d.getDate() + offsetDays);
 
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
@@ -62,25 +76,37 @@ function getDateKeyWithOffset(dateKey: string, offsetDays: number) {
   )}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function isIronDay(dateKey: string) {
+  const diff = daysBetween(IRON_PATTERN_START_DATE, dateKey);
+  return diff % 2 === 0;
+}
+
+function isLTheanineMorningDay(dateKey: string) {
+  return daysBetween(L_THEANINE_DOUBLE_START_DATE, dateKey) >= 0;
+}
+
 function createEmptyMedicationState(dateKey: string): MedicationState {
   return {
     dateKey,
-    ironAlternateDone: false,
-    berberineDone: false,
-    glutamineDone: false,
-    matofinDone: false,
-    alcarDone: false,
-    nacDone: false,
-    b12Done: false,
-    biotinDone: false,
-    sipralexDone: false,
+    ironComboDone: false,
+    berberineMorningDone: false,
     dispeptaMorningDone: false,
-    gstExtraDone: false,
-    kreonDone: false,
-    omepaDone: false,
-    oceanDone: false,
-    curcuminDone: false,
+    alcarMorningDone: false,
+    nacMorningDone: false,
+    kreonMorningDone: false,
+    ligoneBerberisDone: false,
+    b12Done: false,
+    d3k2Done: false,
+    lTheanineMorningDone: false,
+    lCarnitineDone: false,
+    berberineEveningDone: false,
+    kreonEveningDone: false,
     dispeptaEveningDone: false,
+    alcarEveningDone: false,
+    omepaDone: false,
+    nacEveningDone: false,
+    lTheanineEveningDone: false,
+    cipralexDone: false,
     melatoninDone: false,
   };
 }
@@ -93,24 +119,32 @@ function normalizeMedicationState(
 
   return {
     dateKey,
-    ironAlternateDone: raw?.ironAlternateDone ?? empty.ironAlternateDone,
-    berberineDone: raw?.berberineDone ?? empty.berberineDone,
-    glutamineDone: raw?.glutamineDone ?? empty.glutamineDone,
-    matofinDone: raw?.matofinDone ?? empty.matofinDone,
-    alcarDone: raw?.alcarDone ?? empty.alcarDone,
-    nacDone: raw?.nacDone ?? empty.nacDone,
-    b12Done: raw?.b12Done ?? empty.b12Done,
-    biotinDone: raw?.biotinDone ?? empty.biotinDone,
-    sipralexDone: raw?.sipralexDone ?? empty.sipralexDone,
+    ironComboDone: raw?.ironComboDone ?? empty.ironComboDone,
+    berberineMorningDone:
+      raw?.berberineMorningDone ?? empty.berberineMorningDone,
     dispeptaMorningDone:
       raw?.dispeptaMorningDone ?? empty.dispeptaMorningDone,
-    gstExtraDone: raw?.gstExtraDone ?? empty.gstExtraDone,
-    kreonDone: raw?.kreonDone ?? empty.kreonDone,
-    omepaDone: raw?.omepaDone ?? empty.omepaDone,
-    oceanDone: raw?.oceanDone ?? empty.oceanDone,
-    curcuminDone: raw?.curcuminDone ?? empty.curcuminDone,
+    alcarMorningDone: raw?.alcarMorningDone ?? empty.alcarMorningDone,
+    nacMorningDone: raw?.nacMorningDone ?? empty.nacMorningDone,
+    kreonMorningDone: raw?.kreonMorningDone ?? empty.kreonMorningDone,
+    ligoneBerberisDone:
+      raw?.ligoneBerberisDone ?? empty.ligoneBerberisDone,
+    b12Done: raw?.b12Done ?? empty.b12Done,
+    d3k2Done: raw?.d3k2Done ?? empty.d3k2Done,
+    lTheanineMorningDone:
+      raw?.lTheanineMorningDone ?? empty.lTheanineMorningDone,
+    lCarnitineDone: raw?.lCarnitineDone ?? empty.lCarnitineDone,
+    berberineEveningDone:
+      raw?.berberineEveningDone ?? empty.berberineEveningDone,
+    kreonEveningDone: raw?.kreonEveningDone ?? empty.kreonEveningDone,
     dispeptaEveningDone:
       raw?.dispeptaEveningDone ?? empty.dispeptaEveningDone,
+    alcarEveningDone: raw?.alcarEveningDone ?? empty.alcarEveningDone,
+    omepaDone: raw?.omepaDone ?? empty.omepaDone,
+    nacEveningDone: raw?.nacEveningDone ?? empty.nacEveningDone,
+    lTheanineEveningDone:
+      raw?.lTheanineEveningDone ?? empty.lTheanineEveningDone,
+    cipralexDone: raw?.cipralexDone ?? empty.cipralexDone,
     melatoninDone: raw?.melatoninDone ?? empty.melatoninDone,
   };
 }
@@ -128,20 +162,26 @@ export function useMedication() {
   const latestMedicationRef = useRef<MedicationState>(
     createEmptyMedicationState(todayKey)
   );
+  const userIdRef = useRef<string | null>(null);
 
-  const todayAlternate = useMemo(
-    () => getAlternateMorningForDate(medication.dateKey),
+  const isIronActiveDay = useMemo(
+    () => isIronDay(medication.dateKey),
     [medication.dateKey]
   );
 
-  const tomorrowAlternate = useMemo(() => {
+  const tomorrowIronActiveDay = useMemo(() => {
     const tomorrowKey = getDateKeyWithOffset(medication.dateKey, 1);
-    return getAlternateMorningForDate(tomorrowKey);
+    return isIronDay(tomorrowKey);
   }, [medication.dateKey]);
+
+  const isLTheanineMorningActive = useMemo(
+    () => isLTheanineMorningDay(medication.dateKey),
+    [medication.dateKey]
+  );
 
   const saveMedication = useCallback(
     async (next: MedicationState, forcedUserId?: string | null) => {
-      const activeUserId = forcedUserId ?? userId;
+      const activeUserId = forcedUserId ?? userIdRef.current;
       if (!activeUserId) return;
 
       const { error } = await supabase.from("pa_daily_state").upsert(
@@ -158,12 +198,16 @@ export function useMedication() {
         console.error("[Medication] save error:", error);
       }
     },
-    [userId]
+    []
   );
 
   useEffect(() => {
     latestMedicationRef.current = medication;
   }, [medication]);
+
+  useEffect(() => {
+    userIdRef.current = userId;
+  }, [userId]);
 
   useEffect(() => {
     let mounted = true;
@@ -192,6 +236,7 @@ export function useMedication() {
       if (!mounted) return;
 
       setUserId(user.id);
+      userIdRef.current = user.id;
 
       const { data, error } = await supabase
         .from("pa_daily_state")
@@ -266,11 +311,11 @@ export function useMedication() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       const nextUserId = session?.user?.id ?? null;
       setUserId(nextUserId);
+      userIdRef.current = nextUserId;
     });
 
     const flushOnLeave = () => {
-      if (!userId) return;
-      void saveMedication(latestMedicationRef.current, userId);
+      void saveMedication(latestMedicationRef.current, userIdRef.current);
     };
 
     window.addEventListener("pagehide", flushOnLeave);
@@ -286,7 +331,7 @@ export function useMedication() {
       window.removeEventListener("pagehide", flushOnLeave);
       window.removeEventListener("beforeunload", flushOnLeave);
     };
-  }, [todayKey, saveMedication, userId]);
+  }, [todayKey, saveMedication]);
 
   const scheduleSave = useCallback(
     (next: MedicationState) => {
@@ -346,75 +391,81 @@ export function useMedication() {
     patchMedication(createEmptyMedicationState(medication.dateKey));
   }, [medication.dateKey, patchMedication]);
 
-  const todayAlternateLabel =
-    todayAlternate === "osende"
-      ? "Osende Demir C – 1 Kapsül"
-      : "Lactoferrin – 1 Kapsül";
+  const todayIronLabel = isIronActiveDay
+    ? "Aktif gün: Osende Demir C – 2 Adet + Lactoferrin – 1 Adet"
+    : "Boş gün";
 
-  const tomorrowAlternateLabel =
-    tomorrowAlternate === "osende"
-      ? "Osende Demir C – 1 Kapsül"
-      : "Lactoferrin – 1 Kapsül";
+  const tomorrowIronLabel = tomorrowIronActiveDay
+    ? "Aktif gün: Osende Demir C – 2 Adet + Lactoferrin – 1 Adet"
+    : "Boş gün";
 
   const completedCount = useMemo(() => {
     const keys: MedicationField[] = [
-      "ironAlternateDone",
-      "berberineDone",
-      "glutamineDone",
-      "matofinDone",
-      "alcarDone",
-      "nacDone",
-      "b12Done",
-      "biotinDone",
-      "sipralexDone",
+      "ironComboDone",
+      "berberineMorningDone",
       "dispeptaMorningDone",
-      "gstExtraDone",
-      "kreonDone",
-      "omepaDone",
-      "oceanDone",
-      "curcuminDone",
+      "alcarMorningDone",
+      "nacMorningDone",
+      "kreonMorningDone",
+      "ligoneBerberisDone",
+      "b12Done",
+      "d3k2Done",
+      "lTheanineMorningDone",
+      "lCarnitineDone",
+      "berberineEveningDone",
+      "kreonEveningDone",
       "dispeptaEveningDone",
+      "alcarEveningDone",
+      "omepaDone",
+      "nacEveningDone",
+      "lTheanineEveningDone",
+      "cipralexDone",
       "melatoninDone",
     ];
 
     return keys.reduce((sum, key) => sum + Number(medication[key]), 0);
   }, [medication]);
 
-  const totalCount = 17;
+  const totalCount = 20;
 
-  const preBreakfastCompleted = Number(medication.ironAlternateDone);
+  const requiredCompletedCount = useMemo(() => {
+    const count =
+      Number(isIronActiveDay ? medication.ironComboDone : true) +
+      Number(medication.berberineMorningDone) +
+      Number(medication.dispeptaMorningDone) +
+      Number(medication.alcarMorningDone) +
+      Number(medication.nacMorningDone) +
+      Number(medication.kreonMorningDone) +
+      Number(medication.ligoneBerberisDone) +
+      Number(medication.b12Done) +
+      Number(medication.d3k2Done) +
+      Number(medication.berberineEveningDone) +
+      Number(medication.kreonEveningDone) +
+      Number(medication.dispeptaEveningDone) +
+      Number(medication.alcarEveningDone) +
+      Number(medication.omepaDone) +
+      Number(medication.nacEveningDone) +
+      Number(medication.lTheanineEveningDone) +
+      Number(medication.cipralexDone) +
+      Number(medication.melatoninDone);
 
-  const breakfastCompleted =
-    Number(medication.berberineDone) +
-    Number(medication.glutamineDone) +
-    Number(medication.matofinDone);
+    return isLTheanineMorningActive
+      ? count + Number(medication.lTheanineMorningDone)
+      : count;
+  }, [isIronActiveDay, isLTheanineMorningActive, medication]);
 
-  const postBreakfastCompleted =
-    Number(medication.alcarDone) +
-    Number(medication.nacDone) +
-    Number(medication.b12Done) +
-    Number(medication.biotinDone) +
-    Number(medication.sipralexDone) +
-    Number(medication.dispeptaMorningDone) +
-    Number(medication.gstExtraDone);
-
-  const eveningCompleted =
-    Number(medication.kreonDone) +
-    Number(medication.omepaDone) +
-    Number(medication.oceanDone) +
-    Number(medication.curcuminDone) +
-    Number(medication.dispeptaEveningDone) +
-    Number(medication.melatoninDone);
+  const requiredTotalCount = isLTheanineMorningActive ? 19 : 18;
 
   return {
     medication,
     loaded,
     userId,
 
-    todayAlternate,
-    tomorrowAlternate,
-    todayAlternateLabel,
-    tomorrowAlternateLabel,
+    isIronActiveDay,
+    todayIronLabel,
+    tomorrowIronLabel,
+
+    isLTheanineMorningActive,
 
     markDone,
     markUndone,
@@ -423,10 +474,7 @@ export function useMedication() {
 
     completedCount,
     totalCount,
-
-    preBreakfastCompleted,
-    breakfastCompleted,
-    postBreakfastCompleted,
-    eveningCompleted,
+    requiredCompletedCount,
+    requiredTotalCount,
   };
 }
