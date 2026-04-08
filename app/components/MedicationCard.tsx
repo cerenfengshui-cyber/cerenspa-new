@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useMedication } from "../hooks/useMedication";
 
 type MedicationField =
@@ -110,38 +110,43 @@ export default function MedicationCard() {
     resetMedication,
   } = useMedication();
 
-  const setDoneOnlyIfNeeded = (fields: MedicationField[]) => {
-    fields.forEach((field) => {
-      if (!medication[field]) {
-        toggleMedication(field);
-      }
-    });
-  };
+  const setDoneOnlyIfNeeded = useCallback(
+    (fields: MedicationField[]) => {
+      fields.forEach((field) => {
+        if (!medication[field]) {
+          toggleMedication(field);
+        }
+      });
+    },
+    [medication, toggleMedication]
+  );
 
   const ironDone = isIronActiveDay ? medication.ironComboDone : true;
-
   const beforeBreakfastDone = medication.berberineMorningDone;
 
-  const afterBreakfastFields: MedicationField[] = [
-    "dispeptaMorningDone",
-    "alcarMorningDone",
-    "nacMorningDone",
-    "kreonMorningDone",
-    "ligoneBerberisDone",
-    "b12Done",
-    "d3k2Done",
-  ];
+  const afterBreakfastFields = useMemo<MedicationField[]>(() => {
+    const fields: MedicationField[] = [
+      "dispeptaMorningDone",
+      "alcarMorningDone",
+      "nacMorningDone",
+      "kreonMorningDone",
+      "ligoneBerberisDone",
+      "b12Done",
+      "d3k2Done",
+    ];
 
-  if (isLTheanineMorningActive) {
-    afterBreakfastFields.push("lTheanineMorningDone");
-  }
+    if (isLTheanineMorningActive) {
+      fields.push("lTheanineMorningDone");
+    }
+
+    return fields;
+  }, [isLTheanineMorningActive]);
 
   const afterBreakfastDone = afterBreakfastFields.every(
     (field) => medication[field]
   );
 
   const sportDone = medication.lCarnitineDone;
-
   const beforeDinnerDone = medication.berberineEveningDone;
 
   const afterDinnerDone =
@@ -175,35 +180,43 @@ export default function MedicationCard() {
     melatoninDone,
   ]);
 
-  const afterBreakfastLabels = [
-    "Dispepta – 1 Adet",
-    "ALCAR – 1 Adet",
-    "NAC 600 – 1 Adet",
-    "Kreon – 1 Adet",
-    "Ligone Berberis – 1 Adet",
-    "B-12 – 1 Adet",
-    "D3-K2 – 8 Damla",
-  ];
+  const afterBreakfastLabels = useMemo(() => {
+    const labels = [
+      "Dispepta – 1 Adet",
+      "ALCAR – 1 Adet",
+      "NAC 600 – 1 Adet",
+      "Kreon – 1 Adet",
+      "Ligone Berberis – 1 Adet",
+      "B-12 – 1 Adet",
+      "D3-K2 – 8 Damla",
+    ];
 
-  if (isLTheanineMorningActive) {
-    afterBreakfastLabels.push("L-Theanine – 1 Adet");
-  }
+    if (isLTheanineMorningActive) {
+      labels.push("L-Theanine – 1 Adet");
+    }
 
-  const afterBreakfastNotes = [
-    "✅ Kahvaltıdan sonra tok karnına al",
-    "🍽 Kreon’u yemeğin ilk lokmalarıyla almak daha uygundur",
-    "💧 D3-K2 damlayı bu öğünde kullan",
-  ];
+    return labels;
+  }, [isLTheanineMorningActive]);
 
-  if (isLTheanineMorningActive) {
-    afterBreakfastNotes.push(
-      "🌿 L-Theanine bu tarihten itibaren sabah + akşam kullanılacak"
-    );
-  } else {
-    afterBreakfastNotes.push(
-      "🌿 L-Theanine şu an sadece akşam kullanılıyor, 1 hafta sonra sabaha da eklenecek"
-    );
-  }
+  const afterBreakfastNotes = useMemo(() => {
+    const notes = [
+      "✅ Kahvaltıdan sonra tok karnına al",
+      "🍽 Kreon’u yemeğin ilk lokmalarıyla almak daha uygundur",
+      "💧 D3-K2 damlayı bu öğünde kullan",
+    ];
+
+    if (isLTheanineMorningActive) {
+      notes.push(
+        "🌿 L-Theanine bu tarihten itibaren sabah + akşam kullanılacak"
+      );
+    } else {
+      notes.push(
+        "🌿 L-Theanine şu an sadece akşam kullanılıyor, 1 hafta sonra sabaha da eklenecek"
+      );
+    }
+
+    return notes;
+  }, [isLTheanineMorningActive]);
 
   return (
     <div className="rounded-3xl bg-white/30 p-5 shadow-sm ring-1 ring-black/5 backdrop-blur-2xl">

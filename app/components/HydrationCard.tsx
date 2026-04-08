@@ -1,7 +1,8 @@
 "use client";
 
+import { useCallback } from "react";
 import { useWeather } from "../hooks/useWeather";
-import { useHydration } from "../hooks/useHydration";
+import { useHydration, type HydrationData } from "../hooks/useHydration";
 
 export default function HydrationCard() {
   const { weather } = useWeather();
@@ -16,26 +17,50 @@ export default function HydrationCard() {
     lastWeekAmount,
   } = useHydration(isLodos);
 
-  const addWater = (amount: number) => {
-    setHydration((prev) => ({
-      ...prev,
-      drankMl: prev.drankMl + amount,
-    }));
-  };
+  const updateHydration = useCallback(
+    (updater: (prev: HydrationData) => HydrationData) => {
+      setHydration((prev) => updater(prev));
+    },
+    [setHydration]
+  );
 
-  const removeWater = (amount: number) => {
-    setHydration((prev) => ({
-      ...prev,
-      drankMl: Math.max(0, prev.drankMl - amount),
-    }));
-  };
+  const addWater = useCallback(
+    (amount: number) => {
+      updateHydration((prev) => ({
+        ...prev,
+        drankMl: prev.drankMl + amount,
+      }));
+    },
+    [updateHydration]
+  );
 
-  const resetWater = () => {
-    setHydration((prev) => ({
+  const removeWater = useCallback(
+    (amount: number) => {
+      updateHydration((prev) => ({
+        ...prev,
+        drankMl: Math.max(0, prev.drankMl - amount),
+      }));
+    },
+    [updateHydration]
+  );
+
+  const resetWater = useCallback(() => {
+    updateHydration((prev) => ({
       ...prev,
       drankMl: 0,
     }));
-  };
+  }, [updateHydration]);
+
+  const updateWeight = useCallback(
+    (value: string) => {
+      const parsed = Number(value);
+      updateHydration((prev) => ({
+        ...prev,
+        weightKg: Number.isFinite(parsed) ? parsed : 0,
+      }));
+    },
+    [updateHydration]
+  );
 
   const progress =
     goalMl > 0
@@ -64,12 +89,7 @@ export default function HydrationCard() {
         <input
           type="number"
           value={hydration.weightKg}
-          onChange={(e) =>
-            setHydration((prev) => ({
-              ...prev,
-              weightKg: Number(e.target.value) || 0,
-            }))
-          }
+          onChange={(e) => updateWeight(e.target.value)}
           className="w-24 rounded-xl border border-black/10 bg-white/50 px-3 py-2 text-sm outline-none"
         />
         <span className="ml-2 text-sm text-neutral-600">kg</span>

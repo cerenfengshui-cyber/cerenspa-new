@@ -29,21 +29,7 @@ export type MedicationState = {
 
 type MedicationField = Exclude<keyof MedicationState, "dateKey">;
 
-/**
- * Demir protokolü:
- * 2026-03-30 = aktif gün
- * aktif günlerde:
- * - Osende Demir C – 2 adet
- * - Lactoferrin – 1 adet
- * ertesi gün boş
- */
 const IRON_PATTERN_START_DATE = "2026-03-30";
-
-/**
- * L-Theanine:
- * ilk hafta sadece akşam,
- * bu tarihten itibaren sabah + akşam
- */
 const L_THEANINE_DOUBLE_START_DATE = "2026-04-07";
 
 function getTodayKey() {
@@ -195,7 +181,13 @@ export function useMedication() {
       );
 
       if (error) {
-        console.error("[Medication] save error:", error);
+        console.error("[Medication] save error:", {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          raw: error,
+        });
       }
     },
     []
@@ -220,7 +212,13 @@ export function useMedication() {
       } = await supabase.auth.getSession();
 
       if (sessionError) {
-        console.error("[Medication] Session alınamadı:", sessionError);
+        console.error("[Medication] Session alınamadı:", {
+          message: sessionError.message,
+          details: sessionError.details,
+          hint: sessionError.hint,
+          code: sessionError.code,
+          raw: sessionError,
+        });
         if (mounted) setLoaded(true);
         return;
       }
@@ -246,7 +244,13 @@ export function useMedication() {
         .maybeSingle();
 
       if (error) {
-        console.error("[Medication] load error:", error);
+        console.error("[Medication] load error:", {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          raw: error,
+        });
         if (mounted) setLoaded(true);
         return;
       }
@@ -337,15 +341,13 @@ export function useMedication() {
     (next: MedicationState) => {
       latestMedicationRef.current = next;
 
-      if (!loaded) return;
-
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
 
       saveTimerRef.current = setTimeout(() => {
         void saveMedication(next);
       }, 150);
     },
-    [loaded, saveMedication]
+    [saveMedication]
   );
 
   const patchMedication = useCallback(
@@ -460,18 +462,14 @@ export function useMedication() {
     medication,
     loaded,
     userId,
-
     isIronActiveDay,
     todayIronLabel,
     tomorrowIronLabel,
-
     isLTheanineMorningActive,
-
     markDone,
     markUndone,
     toggleMedication,
     resetMedication,
-
     completedCount,
     totalCount,
     requiredCompletedCount,

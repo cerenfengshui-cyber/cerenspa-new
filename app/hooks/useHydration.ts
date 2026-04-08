@@ -1,196 +1,292 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-type HydrationData = {
+export type HydrationData = {
   dateKey: string;
   drankMl: number;
   weightKg: number;
 };
 
-type HydrationHistory = Record<string, { drankMl: number }>;
-
-function getTodayKey() {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function getDateKeyDaysAgo(daysAgo: number) {
-  const d = new Date();
-  d.setDate(d.getDate() - daysAgo);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-const STORAGE_KEY = "cerenspa:hydration:v1";
-const HISTORY_KEY = "cerenspa:hydration:history:v1";
-const PA_STATE_ID = "ceren";
-
-type PAStateRow = {
-  hydration?: HydrationData;
-  hydrationHistory?: HydrationHistory;
+type DailyStateRow = {
+  date_key: string;
+  drank_ml?: number | null;
+  weight_kg?: number | null;
 };
 
-export function useHydration(isLodos: boolean = false) {
-  const [hydration, setHydration] = useState<HydrationData>({
-    dateKey: getTodayKey(),
+function getTodayKey() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Istanbul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function parseDateKey(dateKey: string) {
+  return new Date(`${dateKey}T00:00:00`);
+}
+
+function getDateKeyWithOffset(dateKey: string, offsetDays: number) {
+  const d = parseDateKey(dateKey);
+  d.setDate(d.getDate() + offsetDays);
+
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+    2,
+    "0"
+  )}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function createDefaultHydration(dateKey: string): HydrationData {
+  return {
+    dateKey,
     drankMl: 0,
     weightKg: 60,
-  });
+  };
+}
 
-  const [lastWeekAmount, setLastWeekAmount] = useState<number>(0);
+function normalizeHydration(
+  row: DailyStateRow | null | undefined,
+  dateKey: string,
+  fallbackWeightKg = 60
+): HydrationData {
+  return {
+    dateKey,
+    drankMl: row?.drank_ml ?? 0,
+    weightKg: row?.weight_kg ?? fallbackWeightKg,
+  };
+}
+
+export function useHydration(isLodos: boolean = false) {
+  const todayKey = useMemo(() => getTodayKey(), []);
+  const [userId, setUserId] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
+  const [hydration, setHydrationState] = useState<HydrationData>(
+    createDefaultHydration(todayKey)
+  );
+  const [lastWeekAmount, setLastWeekAmount] = useState<number>(0);
+
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestHydrationRef = useRef<HydrationData>(
+    createDefaultHydration(todayKey)
+  );
+  const userIdRef = useRef<string | null>(null);
+
+  const saveHydration = useCallback(
+    async (next: HydrationData, forcedUserId?: string | null) => {
+      const activeUserId = forcedUserId ?? userIdRef.current;
+      if (!activeUserId) return;
+
+      const { error } = await supabase.from("pa_daily_state").upsert(
+        {
+          user_id: activeUserId,
+          date_key: next.dateKey,
+          drank_ml: next.drankMl,
+          weight_kg: next.weightKg,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,date_key" }
+      );
+
+      if (error) {
+        console.error("[Hydration] save error:", error);
+      }
+    },
+    []
+  );
+
   useEffect(() => {
-    let cancelled = false;
+    latestHydrationRef.current = hydration;
+  }, [hydration]);
 
-    async function loadHydration() {
-      const today = getTodayKey();
+  useEffect(() => {
+    userIdRef.current = userId;
+  }, [userId]);
 
-      try {
-        const { data, error } = await supabase
-          .from("pa_state")
-          .select("state")
-          .eq("id", PA_STATE_ID)
-          .single();
+  useEffect(() => {
+    let mounted = true;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-        if (!error && data?.state && !cancelled) {
-          const state = data.state as PAStateRow;
-          const savedHydration = state.hydration;
-          const savedHistory = state.hydrationHistory ?? {};
+    const loadHydration = async () => {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-          if (savedHydration) {
-            if (savedHydration.dateKey === today) {
-              setHydration({
-                dateKey: today,
-                drankMl: savedHydration.drankMl ?? 0,
-                weightKg: savedHydration.weightKg ?? 60,
-              });
-            } else {
-              setHydration({
-                dateKey: today,
-                drankMl: 0,
-                weightKg: savedHydration.weightKg ?? 60,
-              });
-            }
-          }
-
-          const lastWeekKey = getDateKeyDaysAgo(7);
-          setLastWeekAmount(savedHistory[lastWeekKey]?.drankMl ?? 0);
-
-          localStorage.setItem(
-            STORAGE_KEY,
-            JSON.stringify(
-              savedHydration && savedHydration.dateKey === today
-                ? {
-                    dateKey: today,
-                    drankMl: savedHydration.drankMl ?? 0,
-                    weightKg: savedHydration.weightKg ?? 60,
-                  }
-                : {
-                    dateKey: today,
-                    drankMl: 0,
-                    weightKg: savedHydration?.weightKg ?? 60,
-                  }
-            )
-          );
-          localStorage.setItem(HISTORY_KEY, JSON.stringify(savedHistory));
-          setIsLoaded(true);
-          return;
-        }
-      } catch {
-        // Supabase okunamazsa localStorage fallback
+      if (sessionError) {
+        console.error("[Hydration] Session alınamadı:", sessionError);
+        if (mounted) setIsLoaded(true);
+        return;
       }
 
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+      const user = session?.user;
 
-        if (raw && !cancelled) {
-          const parsed = JSON.parse(raw) as HydrationData;
+      if (!user) {
+        console.warn("[Hydration] Giriş yapan kullanıcı yok.");
+        if (mounted) setIsLoaded(true);
+        return;
+      }
 
-          if (parsed.dateKey === today) {
-            setHydration({
-              dateKey: today,
-              drankMl: parsed.drankMl ?? 0,
-              weightKg: parsed.weightKg ?? 60,
-            });
-          } else {
-            setHydration({
-              dateKey: today,
-              drankMl: 0,
-              weightKg: parsed.weightKg ?? 60,
-            });
-          }
+      if (!mounted) return;
+
+      setUserId(user.id);
+      userIdRef.current = user.id;
+
+      const { data: todayRow, error: todayError } = await supabase
+        .from("pa_daily_state")
+        .select("date_key, drank_ml, weight_kg")
+        .eq("user_id", user.id)
+        .eq("date_key", todayKey)
+        .maybeSingle();
+
+      if (todayError) {
+        console.error("[Hydration] load today error:", todayError);
+      }
+
+      let resolvedWeight = 60;
+
+      if (todayRow) {
+        const normalized = normalizeHydration(todayRow, todayKey, 60);
+        resolvedWeight = normalized.weightKg;
+
+        if (mounted) {
+          setHydrationState(normalized);
+          latestHydrationRef.current = normalized;
+        }
+      } else {
+        const { data: latestWeightRow, error: latestWeightError } =
+          await supabase
+            .from("pa_daily_state")
+            .select("weight_kg")
+            .eq("user_id", user.id)
+            .not("weight_kg", "is", null)
+            .order("date_key", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (latestWeightError) {
+          console.error("[Hydration] latest weight error:", latestWeightError);
         }
 
-        const historyRaw = localStorage.getItem(HISTORY_KEY);
-        const history: HydrationHistory = historyRaw ? JSON.parse(historyRaw) : {};
-        const lastWeekKey = getDateKeyDaysAgo(7);
-        setLastWeekAmount(history[lastWeekKey]?.drankMl ?? 0);
-      } catch {
-        // sessiz geç
-      } finally {
-        if (!cancelled) setIsLoaded(true);
-      }
-    }
+        resolvedWeight = latestWeightRow?.weight_kg ?? 60;
 
-    loadHydration();
+        const freshState = createDefaultHydration(todayKey);
+        freshState.weightKg = resolvedWeight;
+
+        if (mounted) {
+          setHydrationState(freshState);
+          latestHydrationRef.current = freshState;
+        }
+
+        await saveHydration(freshState, user.id);
+      }
+
+      const lastWeekKey = getDateKeyWithOffset(todayKey, -7);
+
+      const { data: lastWeekRow, error: lastWeekError } = await supabase
+        .from("pa_daily_state")
+        .select("drank_ml")
+        .eq("user_id", user.id)
+        .eq("date_key", lastWeekKey)
+        .maybeSingle();
+
+      if (lastWeekError) {
+        console.error("[Hydration] last week error:", lastWeekError);
+      }
+
+      if (mounted) {
+        setLastWeekAmount(lastWeekRow?.drank_ml ?? 0);
+      }
+
+      channel = supabase
+        .channel(`pa_daily_state_hydration_${user.id}_${todayKey}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "pa_daily_state",
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            const row = payload.new as DailyStateRow | null;
+            if (!row?.date_key || row.date_key !== todayKey) return;
+
+            setHydrationState((prev) => {
+              const next = normalizeHydration(row, todayKey, prev.weightKg);
+              latestHydrationRef.current = next;
+              return next;
+            });
+          }
+        )
+        .subscribe();
+
+      if (mounted) setIsLoaded(true);
+    };
+
+    void loadHydration();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const nextUserId = session?.user?.id ?? null;
+      setUserId(nextUserId);
+      userIdRef.current = nextUserId;
+    });
+
+    const flushOnLeave = () => {
+      void saveHydration(latestHydrationRef.current, userIdRef.current);
+    };
+
+    window.addEventListener("pagehide", flushOnLeave);
+    window.addEventListener("beforeunload", flushOnLeave);
 
     return () => {
-      cancelled = true;
+      mounted = false;
+
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      if (channel) supabase.removeChannel(channel);
+
+      subscription.unsubscribe();
+      window.removeEventListener("pagehide", flushOnLeave);
+      window.removeEventListener("beforeunload", flushOnLeave);
     };
-  }, []);
+  }, [todayKey, saveHydration]);
 
-  useEffect(() => {
-    if (!isLoaded) return;
+  const scheduleSave = useCallback(
+    (next: HydrationData) => {
+      latestHydrationRef.current = next;
 
-    async function saveHydration() {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(hydration));
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
 
-        const historyRaw = localStorage.getItem(HISTORY_KEY);
-        const history: HydrationHistory = historyRaw ? JSON.parse(historyRaw) : {};
+      saveTimerRef.current = setTimeout(() => {
+        void saveHydration(next);
+      }, 150);
+    },
+    [saveHydration]
+  );
 
-        history[hydration.dateKey] = {
-          drankMl: hydration.drankMl,
-        };
+  const setHydration = useCallback(
+    (updater: HydrationData | ((prev: HydrationData) => HydrationData)) => {
+      setHydrationState((prev) => {
+        const next =
+          typeof updater === "function"
+            ? (updater as (prev: HydrationData) => HydrationData)(prev)
+            : updater;
 
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+        scheduleSave(next);
+        return next;
+      });
+    },
+    [scheduleSave]
+  );
 
-        const lastWeekKey = getDateKeyDaysAgo(7);
-        setLastWeekAmount(history[lastWeekKey]?.drankMl ?? 0);
-
-        const stateToSave: PAStateRow = {
-          hydration,
-          hydrationHistory: history,
-        };
-
-        await supabase.from("pa_state").upsert(
-          {
-            id: PA_STATE_ID,
-            state: stateToSave,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "id" }
-        );
-      } catch {
-        // sessiz geç
-      }
-    }
-
-    saveHydration();
-  }, [hydration, isLoaded]);
-
-  const baseGoalMl = useMemo(() => {
-    return hydration.weightKg * 35;
-  }, [hydration.weightKg]);
-
+  const baseGoalMl = useMemo(
+    () => hydration.weightKg * 35,
+    [hydration.weightKg]
+  );
   const extraMl = isLodos ? 300 : 0;
   const goalMl = baseGoalMl + extraMl;
 
@@ -201,5 +297,7 @@ export function useHydration(isLodos: boolean = false) {
     baseGoalMl,
     extraMl,
     lastWeekAmount,
+    userId,
+    isLoaded,
   };
 }
