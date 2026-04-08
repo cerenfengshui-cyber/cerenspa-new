@@ -77,7 +77,16 @@ export function useHydration(isLodos: boolean = false) {
   const saveHydration = useCallback(
     async (next: HydrationData, forcedUserId?: string | null) => {
       const activeUserId = forcedUserId ?? userIdRef.current;
-      if (!activeUserId) return;
+
+      console.log("[Hydration] saveHydration called", {
+        next,
+        activeUserId,
+      });
+
+      if (!activeUserId) {
+        console.warn("[Hydration] user_id yok, save atlandı.");
+        return;
+      }
 
       const { error } = await supabase.from("pa_daily_state").upsert(
         {
@@ -92,7 +101,10 @@ export function useHydration(isLodos: boolean = false) {
 
       if (error) {
         console.error("[Hydration] save error:", error);
+        return;
       }
+
+      console.log("[Hydration] save success");
     },
     []
   );
@@ -145,11 +157,8 @@ export function useHydration(isLodos: boolean = false) {
         console.error("[Hydration] load today error:", todayError);
       }
 
-      let resolvedWeight = 60;
-
       if (todayRow) {
         const normalized = normalizeHydration(todayRow, todayKey, 60);
-        resolvedWeight = normalized.weightKg;
 
         if (mounted) {
           setHydrationState(normalized);
@@ -170,10 +179,8 @@ export function useHydration(isLodos: boolean = false) {
           console.error("[Hydration] latest weight error:", latestWeightError);
         }
 
-        resolvedWeight = latestWeightRow?.weight_kg ?? 60;
-
         const freshState = createDefaultHydration(todayKey);
-        freshState.weightKg = resolvedWeight;
+        freshState.weightKg = latestWeightRow?.weight_kg ?? 60;
 
         if (mounted) {
           setHydrationState(freshState);
@@ -198,6 +205,7 @@ export function useHydration(isLodos: boolean = false) {
 
       if (mounted) {
         setLastWeekAmount(lastWeekRow?.drank_ml ?? 0);
+        setIsLoaded(true);
       }
 
       channel = supabase
@@ -222,8 +230,6 @@ export function useHydration(isLodos: boolean = false) {
           }
         )
         .subscribe();
-
-      if (mounted) setIsLoaded(true);
     };
 
     void loadHydration();
@@ -258,6 +264,8 @@ export function useHydration(isLodos: boolean = false) {
   const scheduleSave = useCallback(
     (next: HydrationData) => {
       latestHydrationRef.current = next;
+
+      console.log("[Hydration] scheduleSave", next);
 
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
 

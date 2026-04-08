@@ -168,7 +168,16 @@ export function useMedication() {
   const saveMedication = useCallback(
     async (next: MedicationState, forcedUserId?: string | null) => {
       const activeUserId = forcedUserId ?? userIdRef.current;
-      if (!activeUserId) return;
+
+      console.log("[Medication] saveMedication called", {
+        next,
+        activeUserId,
+      });
+
+      if (!activeUserId) {
+        console.warn("[Medication] user_id yok, save atlandı.");
+        return;
+      }
 
       const { error } = await supabase.from("pa_daily_state").upsert(
         {
@@ -181,14 +190,11 @@ export function useMedication() {
       );
 
       if (error) {
-        console.error("[Medication] save error:", {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-          raw: error,
-        });
+        console.error("[Medication] save error:", error);
+        return;
       }
+
+      console.log("[Medication] save success");
     },
     []
   );
@@ -212,13 +218,7 @@ export function useMedication() {
       } = await supabase.auth.getSession();
 
       if (sessionError) {
-        console.error("[Medication] Session alınamadı:", {
-          message: sessionError.message,
-          details: sessionError.details,
-          hint: sessionError.hint,
-          code: sessionError.code,
-          raw: sessionError,
-        });
+        console.error("[Medication] Session alınamadı:", sessionError);
         if (mounted) setLoaded(true);
         return;
       }
@@ -244,13 +244,7 @@ export function useMedication() {
         .maybeSingle();
 
       if (error) {
-        console.error("[Medication] load error:", {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-          raw: error,
-        });
+        console.error("[Medication] load error:", error);
         if (mounted) setLoaded(true);
         return;
       }
@@ -292,7 +286,7 @@ export function useMedication() {
               medication_state?: Partial<MedicationState> | null;
             };
 
-            if (row?.date_key !== todayKey) return;
+            if (!row?.date_key || row.date_key !== todayKey) return;
 
             const normalized = normalizeMedicationState(
               row.medication_state,
@@ -340,6 +334,8 @@ export function useMedication() {
   const scheduleSave = useCallback(
     (next: MedicationState) => {
       latestMedicationRef.current = next;
+
+      console.log("[Medication] scheduleSave", next);
 
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
 
