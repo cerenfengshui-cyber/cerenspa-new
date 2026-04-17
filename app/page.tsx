@@ -162,11 +162,14 @@ export default function Home() {
         </div>
 
         <div className="grid gap-4">
-          <MoonCard />
+          <div className="grid items-stretch gap-4 md:grid-cols-2">
+            <MoonCard />
+            <StickyNoteCard />
+          </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <WeatherCard />
-            <StickyNoteCard />
+            <HydrationCard />
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
@@ -174,11 +177,8 @@ export default function Home() {
               <MedicationCard />
             </div>
 
-            <div className="md:col-span-1 self-start">
-              <div className="grid gap-4">
-                <HydrationCard />
-                <DailyEnergyCard />
-              </div>
+            <div className="md:col-span-1">
+              <DailyEnergyCard />
             </div>
           </div>
         </div>

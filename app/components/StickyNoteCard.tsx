@@ -6,7 +6,7 @@ export default function StickyNoteCard() {
   const { note, setNote, clearNote } = useStickyNote();
 
   return (
-    <div className="rounded-3xl bg-white/30 p-5 shadow-sm ring-1 ring-black/5 backdrop-blur-2xl">
+    <div className="h-full flex flex-col rounded-3xl bg-white/30 p-5 shadow-sm ring-1 ring-black/5 backdrop-blur-2xl">
       <div className="flex items-start justify-between">
         <h2 className="text-base font-medium">Not</h2>
 
@@ -24,8 +24,7 @@ export default function StickyNoteCard() {
         value={note}
         onChange={(e) => setNote(e.target.value)}
         placeholder="Bugün için not yaz..."
-        className="mt-4 w-full resize-none rounded-2xl bg-white/40 p-3 text-sm outline-none ring-1 ring-black/5"
-        rows={4}
+        className="mt-4 w-full flex-1 min-h-[120px] resize-none rounded-2xl bg-white/40 p-3 text-sm outline-none ring-1 ring-black/5"
       />
     </div>
   );

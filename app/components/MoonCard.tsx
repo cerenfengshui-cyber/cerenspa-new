@@ -136,7 +136,7 @@ export default function MoonCard() {
 
   if (!moon) {
     return (
-      <div className="rounded-3xl bg-white/30 p-5 shadow-sm ring-1 ring-black/5 backdrop-blur-2xl">
+      <div className="h-full rounded-3xl bg-white/30 p-5 shadow-sm ring-1 ring-black/5 backdrop-blur-2xl">
         <div className="flex items-start justify-between">
           <h2 className="text-base font-medium">Ay Döngüsü</h2>
         </div>
@@ -152,7 +152,7 @@ export default function MoonCard() {
   const guidance = getGuidance(moon.phase);
 
   return (
-    <div className="rounded-3xl bg-white/30 p-5 shadow-sm ring-1 ring-black/5 backdrop-blur-2xl">
+    <div className="h-full rounded-3xl bg-white/30 p-5 shadow-sm ring-1 ring-black/5 backdrop-blur-2xl">
       <div className="flex items-start justify-between">
         <h2 className="text-base font-medium">Ay Döngüsü</h2>
       </div>
